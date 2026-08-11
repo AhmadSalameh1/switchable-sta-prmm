@@ -1,5 +1,7 @@
 # Switchable STA Supply Chain Resilience Model + PRMM Evidence Binding
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21893262.svg)](https://doi.org/10.5281/zenodo.21893262)
+
 Reproducibility artifact for: *[paper title/citation to be added on acceptance]*, Ahmad Salameh, SYMME Laboratory, Université Savoie Mont Blanc.
 
 This repository accompanies the internship report "Modelling and Analysis of Supply Chain Resilience Using Stochastic Timed Automata" and the resulting journal article. It contains the UPPAAL model, the Python evaluation toolchain, and the full experimental results (point estimates, 95% confidence intervals, and raw `verifyta` traces) for all eleven scenario configurations.
@@ -76,7 +78,7 @@ Query battery: 17 queries per scenario, N=50 runs per estimate query, horizon T=
 
 ## Citing this repository
 
-See `CITATION.cff`. If you use this model, toolchain, or data, please cite both the repository (via its Zenodo DOI, minted on first tagged release) and the associated paper.
+See `CITATION.cff`. If you use this model, toolchain, or data, please cite both the repository (DOI: [10.5281/zenodo.21893262](https://doi.org/10.5281/zenodo.21893262), v1.0.0) and the associated paper.
 
 ## License
 

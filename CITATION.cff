@@ -6,9 +6,14 @@ authors:
   - family-names: Salameh
     given-names: Ahmad
     affiliation: "SYMME Laboratory, Université Savoie Mont Blanc"
-repository-code: "[add GitHub URL here once repository is created]"
-version: "11.4.1"
-date-released: "[add release date]"
+repository-code: "https://github.com/AhmadSalameh1/switchable-sta-prmm"
+version: "1.0.0"
+date-released: "2026-08-11"
+doi: "10.5281/zenodo.21893262"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.21893262"
+    description: "Zenodo archive of v1.0.0 (model, toolchain, results)"
 license: "MIT"
 license-url: "https://opensource.org/license/mit/"
 # Note: model and result data under CC-BY-4.0 (see LICENSE-DATA.md); code under MIT.
