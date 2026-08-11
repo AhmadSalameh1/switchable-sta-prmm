@@ -1,0 +1,109 @@
+Options for the verification:
+  Generating no trace
+  Search order is breadth first
+  Using conservative space optimisation
+  Seed is 1780487886
+  State space representation uses minimal constraint systems with future testing
+  Using HashMap + Compress integers for discrete state storage
+[2K
+Verifying formula 1 at C:\Temp\uppaal_queries_fonfafev\query_1.q:2
+ -- Throughput: 113592 runs/sec, Load: 386 runs[K
+ -- Throughput: 124317 runs/sec, Load: 383 runs[K
+ -- Throughput: 124619 runs/sec, Load: 379 runs[K
+ -- Throughput: 119396 runs/sec, Load: 375 runs[K
+ -- Throughput: 112454 runs/sec, Load: 372 runs[K
+ -- Throughput: 123012 runs/sec, Load: 368 runs[K
+ -- Throughput: 124794 runs/sec, Load: 365 runs[K
+ -- Throughput: 112675 runs/sec, Load: 361 runs[K
+ -- Throughput: 116522 runs/sec, Load: 358 runs[K
+ -- Throughput: 114054 runs/sec, Load: 354 runs[K
+ -- Throughput: 110559 runs/sec, Load: 351 runs[K
+ -- Throughput: 111370 runs/sec, Load: 348 runs[K
+ -- Throughput: 114474 runs/sec, Load: 345 runs[K
+ -- Throughput: 111192 runs/sec, Load: 342 runs[K
+ -- Throughput: 109921 runs/sec, Load: 338 runs[K
+ -- Throughput: 117753 runs/sec, Load: 335 runs[K
+ -- Throughput: 117816 runs/sec, Load: 332 runs[K
+ -- Throughput: 126841 runs/sec, Load: 328 runs[K
+ -- Throughput: 103523 runs/sec, Load: 324 runs[K
+ -- Throughput: 117774 runs/sec, Load: 320 runs[K
+ -- Throughput: 113362 runs/sec, Load: 317 runs[K
+ -- Throughput: 103655 runs/sec, Load: 314 runs[K
+ -- Throughput: 116352 runs/sec, Load: 311 runs[K
+ -- Throughput: 122553 runs/sec, Load: 307 runs[K
+ -- Throughput: 113932 runs/sec, Load: 304 runs[K
+ -- Throughput: 125567 runs/sec, Load: 301 runs[K
+ -- Throughput: 122179 runs/sec, Load: 297 runs[K
+ -- Throughput: 114482 runs/sec, Load: 294 runs[K
+ -- Throughput: 121151 runs/sec, Load: 290 runs[K
+ -- Throughput: 119861 runs/sec, Load: 287 runs[K
+ -- Throughput: 104103 runs/sec, Load: 283 runs[K
+ -- Throughput: 110899 runs/sec, Load: 280 runs[K
+ -- Throughput: 112351 runs/sec, Load: 277 runs[K
+ -- Throughput: 108898 runs/sec, Load: 274 runs[K
+ -- Throughput: 109913 runs/sec, Load: 270 runs[K
+ -- Throughput: 109325 runs/sec, Load: 267 runs[K
+ -- Throughput: 98742 runs/sec, Load: 264 runs[K
+ -- Throughput: 115042 runs/sec, Load: 261 runs[K
+ -- Throughput: 113347 runs/sec, Load: 257 runs[K
+ -- Throughput: 93051 runs/sec, Load: 254 runs[K
+ -- Throughput: 102737 runs/sec, Load: 251 runs[K
+ -- Throughput: 105852 runs/sec, Load: 248 runs[K
+ -- Throughput: 90166 runs/sec, Load: 245 runs[K
+ -- Throughput: 106548 runs/sec, Load: 242 runs[K
+ -- Throughput: 116883 runs/sec, Load: 239 runs[K
+ -- Throughput: 99385 runs/sec, Load: 235 runs[K
+ -- Throughput: 104325 runs/sec, Load: 232 runs[K
+ -- Throughput: 115331 runs/sec, Load: 229 runs[K
+ -- Throughput: 99428 runs/sec, Load: 226 runs[K
+ -- Throughput: 98747 runs/sec, Load: 223 runs[K
+ -- Throughput: 110920 runs/sec, Load: 220 runs[K
+ -- Throughput: 105983 runs/sec, Load: 216 runs[K
+ -- Throughput: 104686 runs/sec, Load: 213 runs[K
+ -- Throughput: 120924 runs/sec, Load: 210 runs[K
+ -- Throughput: 111589 runs/sec, Load: 206 runs[K
+ -- Throughput: 104323 runs/sec, Load: 203 runs[K
+ -- Throughput: 66723 runs/sec, Load: 200 runs[K
+ -- Throughput: 108068 runs/sec, Load: 197 runs[K
+ -- Throughput: 112827 runs/sec, Load: 194 runs[K
+ -- Throughput: 117251 runs/sec, Load: 190 runs[K
+ -- Throughput: 109095 runs/sec, Load: 187 runs[K
+ -- Throughput: 119583 runs/sec, Load: 183 runs[K
+ -- Throughput: 112625 runs/sec, Load: 180 runs[K
+ -- Throughput: 74038 runs/sec, Load: 177 runs[K
+ -- Throughput: 86788 runs/sec, Load: 174 runs[K
+ -- Throughput: 114524 runs/sec, Load: 171 runs[K
+ -- Throughput: 97847 runs/sec, Load: 168 runs[K
+ -- Throughput: 112721 runs/sec, Load: 164 runs[K
+ -- Throughput: 114865 runs/sec, Load: 161 runs[K
+ -- Throughput: 106307 runs/sec, Load: 158 runs[K
+ -- Throughput: 110622 runs/sec, Load: 155 runs[K
+ -- Throughput: 121495 runs/sec, Load: 151 runs[K
+ -- Throughput: 99521 runs/sec, Load: 148 runs[K
+ -- Throughput: 104106 runs/sec, Load: 144 runs[K
+ -- Throughput: 115750 runs/sec, Load: 141 runs[K
+ -- Throughput: 99885 runs/sec, Load: 138 runs[K
+ -- Throughput: 92899 runs/sec, Load: 135 runs[K
+ -- Throughput: 112474 runs/sec, Load: 131 runs[K
+ -- Throughput: 99182 runs/sec, Load: 128 runs[K
+ -- Throughput: 92693 runs/sec, Load: 125 runs[K
+ -- Throughput: 110846 runs/sec, Load: 122 runs[K
+ -- Throughput: 102821 runs/sec, Load: 119 runs[K
+ -- Throughput: 92904 runs/sec, Load: 116 runs[K
+ -- Throughput: 106322 runs/sec, Load: 113 runs[K
+ -- Throughput: 100334 runs/sec, Load: 110 runs[K
+ -- Throughput: 89459 runs/sec, Load: 107 runs[K
+ -- Throughput: 111324 runs/sec, Load: 104 runs[K
+ -- Throughput: 109774 runs/sec, Load: 101 runs[K
+ -- Throughput: 89107 runs/sec, Load: 98 runs[K
+ -- Throughput: 113171 runs/sec, Load: 95 runs[K
+ -- Throughput: 106927 runs/sec, Load: 91 runs[K
+ -- Throughput: 82245 runs/sec, Load: 88 runs[K
+ -- Throughput: 105785 runs/sec, Load: 85 runs[K
+ -- Throughput: 107201 runs/sec, Load: 82 runs[K
+ -- Throughput: 88223 runs/sec, Load: 79 runs[K
+ -- Throughput: 108425 runs/sec, Load: 76 runs[K
+ -- Throughput: 110225 runs/sec, Load: 73 runs[K
+[2K -- Formula is satisfied.
+(246/317 runs) Pr(<> …) in [0.726082,0.820728] (95% CI)
+Values in [800,800] mean=800 steps=2.22045e-16: 246

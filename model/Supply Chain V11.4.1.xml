@@ -1,0 +1,2177 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.6//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_6.dtd'>
+<nta>
+	<declaration>// ============================================================================
+// GLOBAL DECLARATIONS — SUPPLY CHAIN V11.3
+// ============================================================================
+// Purpose:
+//   This declaration block defines the complete shared structure of the
+//   UPPAAL SMC supply-chain model. It includes:
+//     1. Entity counts and bounded identifier types
+//     2. Product bill-of-materials reference
+//     3. Disruption and resilience-practice activation switches
+//     4. Inventory capacities, safety thresholds, batches, and timings
+//     5. Shared stock, demand, sales, and transport state variables
+//     6. Disruption, practice, and diagnostic counters
+//     7. FIFO request-management functions
+//     8. Resilience KPI functions
+//     9. Raw-material replenishment and production-support logic
+//    10. Synchronization channels
+//
+// Important:
+//   The structure and logic are kept identical to the working version.
+//   Only comments, spacing, and section organization were improved.
+// ============================================================================
+
+
+// ============================================================================
+// 1. SYSTEM ENTITIES AND IDENTIFIER TYPES
+// ============================================================================
+// Each entity type uses a bounded integer typedef. These bounded types are used
+// as template parameters, array indexes, and function parameters.
+// ============================================================================
+
+// ---------- Production units ----------
+const int N_PROD = 2;
+typedef int[0, N_PROD-1] prod_id;
+
+// ---------- Customers ----------
+const int N_CUST = 71;
+typedef int[0, N_CUST-1] cust_id;
+
+// ---------- Stores ----------
+const int N_STORE = 3;
+typedef int[0, N_STORE-1] store_id;
+
+// ---------- Suppliers ----------
+const int N_SUPP = 1;
+typedef int[0, N_SUPP-1] supp_id;
+
+// ---------- Raw materials ----------
+const int N_RM = 5;
+typedef int[0, N_RM-1] rm_id;
+
+// ---------- Large bounded integer type ----------
+// Used for cumulative counters that can become large during simulation.
+typedef int[0, 1000000] big_int;
+
+
+// ============================================================================
+// 2. BILL OF MATERIALS REFERENCE — FINISHED PRODUCT AA-F12
+// ============================================================================
+// Raw material index meaning:
+//   0 = AA-R02 Blueberries
+//   1 = AA-R05 Wheat
+//   2 = AA-R06 Oats
+//   3 = AA-P01 Large Box (1 kg)
+//   4 = AA-P02 Large Bag (1 kg)
+// ============================================================================
+
+
+// ============================================================================
+// 3. SCENARIO ACTIVATION SWITCHES
+// ============================================================================
+// Change false/true to activate or deactivate each modeled disruption/practice.
+//
+// Note:
+//    TRACK_PRODUCTION_BLOCKING_KPI is kept because it exists in the working model.
+//   In the current declaration logic, production feasibility is still governed by
+//   raw-material availability through can_start_production().
+// ============================================================================
+
+// ---------- V10 disruption switches ----------
+// [DK:DS] Demand shock disruption
+const bool ENABLE_D_DEMAND_SHOCK = false;
+
+// [DK:RS] Raw-material shortage disruption
+const bool ENABLE_D_RAW_SHORTAGE = true;
+
+// [DK:QS] Quality shock disruption
+const bool ENABLE_D_QUALITY_SHOCK = false;
+
+// [DK:FTD] Finished-goods transport delay disruption
+const bool ENABLE_D_FINISHED_TRANSPORT_DELAY = false;
+
+// ---------- V11 resilience-practice switches ----------
+// [PK:ERR] Emergency raw-material replenishment practice
+const bool ENABLE_P_EMERGENCY_RAW_REPLENISHMENT = true;
+
+// [PK:ARSS] Adaptive raw safety stock practice
+const bool ENABLE_P_ADAPTIVE_RAW_SAFETY_STOCK = false;
+
+// [PK:DSC] Demand surge capacity practice
+const bool ENABLE_P_DEMAND_SURGE_CAPACITY = false;
+
+// [PK:BFGT] Backup finished-goods truck practice
+const bool ENABLE_P_BACKUP_FINISHED_GOODS_TRUCK = false;
+
+// ============================================================================
+// 4. TRANSPORT ENTITY TYPES
+// ============================================================================
+// Truck1 handles upstream raw-material transport.
+// Truck2 handles downstream finished-product transport from the production /
+// warehouse stock to the stores.
+// ============================================================================
+
+// ---------- Upstream raw-material trucks ----------
+const int N_TRUCK1 = 1;
+typedef int[0, N_TRUCK1-1] truck1_id;
+
+// ---------- Downstream finished-product trucks ----------
+const int NORMAL_TRUCK2_COUNT = 3;
+const int N_TRUCK2 = NORMAL_TRUCK2_COUNT + 1;
+typedef int[0, N_TRUCK2-1] truck2_id;
+
+// ============================================================================
+// 5. INVENTORY THRESHOLDS, BATCH SIZES, AND TIMING PARAMETERS
+// ============================================================================
+// This section defines the numerical configuration of the model:
+//   - store maximum capacities
+//   - store safe-inventory thresholds
+//   - finished-product and raw-material safety thresholds
+//   - raw-material consumption and replenishment batches
+//   - production, shipment, and customer-order quantities
+//   - production and transport timing parameters
+// ============================================================================
+
+// ---------- Store capacity and store safety levels ----------
+const int max_stock[N_STORE]      = {1318, 1438, 1376};
+const int safe_inventory[N_STORE] = {210, 300, 200};
+
+// ---------- Finished-product and raw-material safety thresholds ----------
+const int safe_done      = 200;
+const int safe_raw[N_RM] = {160, 190, 190, 530, 530};
+
+// ---------- Raw-material consumption per production batch ----------
+const int RAW_USE_PER_BATCH[N_RM] = {113, 131, 131, 376, 376};
+
+// ---------- Raw-material replenishment batch ----------
+const int RAW_BATCH[N_RM] = {133, 256, 278, 775, 775};
+
+// ---------- Finished-product and customer-order batch sizes ----------
+const int PROD_BATCH  = 376;
+const int SHIP_BATCH  = 83;
+const int ORDER_BATCH = 10;
+
+// ---------- Customer order and operation timing ----------
+const int ORDER_MIN = 11;
+
+const int PROD_MIN = 1;
+const int PROD_MAX = 1;
+
+const int T1_MIN = 8;
+const int T1_MAX = 16;
+
+const int T2_MIN = 1;
+const int T2_MAX = 1;
+
+
+
+
+const bool TRACK_PRODUCTION_BLOCKING_KPI = true;
+
+// ============================================================================
+// V11.4 FINISHED-GOODS TRANSPORT DELAY DISRUPTION
+// ============================================================================
+// This disruption delays downstream finished-goods transport.
+// A delay window occurs once per period, starting at a random offset.
+// During the active window, any finished-goods truck trip that starts is delayed.
+//
+// Interpretation:
+//   Normal finished transport duration = T2_MAX = 1 time unit.
+//   Disrupted finished transport duration = 10 time units.
+//   One delay window occurs every 255 time units.
+//   Delay window duration = 50 time units.
+// ============================================================================
+
+const int FG_TRANSPORT_DELAY_PERIOD = 255;
+const int FG_TRANSPORT_DELAY_DURATION = 50;
+const int FG_TRANSPORT_DELAY_TRIP_TIME = 10;
+
+// ============================================================================
+// 6. SHARED INVENTORY, DEMAND, SALES, AND TIME STATE
+// ============================================================================
+// These variables represent the current state of the supply chain during
+// simulation: inventories, incoming shipments, pending store requests,
+// cumulative demand/sales, and discrete simulation time.
+// ============================================================================
+
+// ---------- Store finished-product stock ----------
+int[0,1000000] inventory_stock[N_STORE] = {0, 0, 0};
+
+// ---------- Finished products assigned to stores but not yet delivered ----------
+int[0,1000000] incoming_inventory[N_STORE] = {0, 0, 0};
+
+// ---------- Finished-product stock at production / warehouse level ----------
+int[0,1000000] done_stock = 0;
+
+// ---------- Raw-material stock and incoming raw-material quantities ----------
+int[0,1000000] raw_stock[N_RM]    = {266, 512, 556, 1550, 1550};
+int[0,1000000] incoming_raw[N_RM] = {0, 0, 0, 0, 0};
+
+// ---------- Store replenishment request status ----------
+bool inventory_request_pending[N_STORE] = {false, false, false};
+
+// ---------- Global demand and sales counters ----------
+int total_ordered = 0;
+int total_sold    = 0;
+
+// ---------- Per-customer order counters ----------
+int orders_made[N_CUST];
+int orders_received[N_CUST];
+
+// ---------- Discrete simulation time ----------
+int sim_time = 0;
+
+
+// ============================================================================
+// 7. SUPPLIER AND RAW-MATERIAL DELIVERY MONITORING
+// ============================================================================
+// These counters are used to observe the delivered raw-material quantities,
+// both globally by supplier and individually by raw-material type.
+// ============================================================================
+
+// ---------- Total raw material delivered by supplier ----------
+big_int total_raw_from_supplier[N_SUPP] = {0};
+
+// ---------- Total raw material delivered per raw-material type ----------
+big_int total_raw_by_material[N_RM] = {0, 0, 0, 0, 0};
+
+
+// ============================================================================
+// 8. TRUCK AVAILABILITY FLAGS
+// ============================================================================
+// A truck is busy while it is assigned to an ongoing transport operation.
+// ============================================================================
+
+bool truck1_busy[N_TRUCK1];
+bool truck2_busy[N_TRUCK2];
+
+
+// ============================================================================
+// 9. CUSTOMER ORDER TIMING AND STOCHASTIC DELAY PARAMETERS
+// ============================================================================
+// Customer inter-order delays are generated with a gamma-based distribution.
+// First orders are staggered so that all customers do not order at the same
+// initial instant.
+// ============================================================================
+
+
+// ---------- Gamma distribution for customer inter-order delays ----------
+const double ORDER_G_SHAPE = 4.0;
+const double ORDER_G_SCALE = 0.5;   // Mean extra delay = shape × scale = 2
+
+int[0,400] order_delay[N_CUST];
+
+// ---------- First-order staggering ----------
+const int FIRST_ORDER_BASE = 11;
+const int FIRST_ORDER_GAP  = 8;
+
+const double FIRST_JIT_SHAPE = 2.0;
+const double FIRST_JIT_SCALE = 0.5; // Mean jitter = 1
+
+bool first_order_done[N_CUST];
+
+
+// ============================================================================
+// 10. RAW-MATERIAL QUANTITY DISRUPTION
+// ============================================================================
+// When enabled, the raw-material shortage mechanism makes the supplier send
+// half of the normal raw-material batch for a limited number of events during
+// each shortage period.
+// ============================================================================
+
+bool current_raw_shipment_is_short = false;
+
+const int RAW_SHORTAGE_PERIOD = 510;
+const int RAW_SHORTAGE_EVENTS_PER_PERIOD = 2;
+
+int raw_shortage_remaining = 0;
+int total_raw_shortage_events = 0;
+
+int last_raw_shipment_qty[N_RM] = {0, 0, 0, 0, 0};
+
+// ---------- Raw-shortage period diagnostics ----------
+int total_raw_shortage_periods = 0;
+int last_raw_shortage_period_time = -1;
+int last_raw_shortage_time = -1;
+bool last_raw_shipment_was_short = false;
+
+// ---------- Customer waiting diagnostics ----------
+int wait_obs[N_CUST];
+int first_wait_value[N_CUST];
+bool first_wait_done[N_CUST];
+
+// ---------- Quality-shock diagnostics ----------
+int total_shock_events = 0;
+int total_shock_batches = 0;
+
+int last_shock_trigger_time = -1;
+int last_defect_pct = 0;
+
+bool last_batch_was_shock = false;
+
+// ---------- Batch-level stockout/recovery diagnostics ----------
+int orders_at_empty[N_STORE] = {0, 0, 0};
+int served_at_empty[N_STORE] = {0, 0, 0};
+
+int last_recovery_time[N_STORE]  = {-1, -1, -1};
+int first_recovery_time[N_STORE] = {-1, -1, -1};
+int total_recovery_time[N_STORE] = {0, 0, 0};
+int recovery_count[N_STORE]      = {0, 0, 0};
+
+bool recovered_once[N_STORE] = {false, false, false};
+
+// ---------- Safe-stock recovery diagnostics ----------
+int total_safe_stock_recovery_time[N_STORE] = {0, 0, 0};
+int safe_stock_recovery_count[N_STORE] = {0, 0, 0};
+
+// ============================================================================
+// V11.4 FINISHED-GOODS TRANSPORT DELAY STATE AND COUNTERS
+// ============================================================================
+
+bool finished_transport_delay_active = false;
+
+int fg_transport_delay_start_offset = 0;
+
+int total_finished_transport_delay_windows = 0;
+int last_finished_transport_delay_start = -1;
+
+int total_finished_transport_delayed_trips = 0;
+int last_finished_transport_delayed_trip_time = -1;
+
+// Each Truck2 trip stores its own duration at dispatch time.
+// This avoids problems if the disruption window ends while a truck is still moving.
+int[0,100] t2_trip_duration[N_TRUCK2];
+
+// True if the current/last trip of a truck was affected by the delay.
+bool t2_trip_was_delayed[N_TRUCK2];
+
+
+// ============================================================================
+// V11.4 BACKUP FINISHED-GOODS TRUCK PRACTICE STATE AND COUNTERS
+// ============================================================================
+
+bool backup_finished_goods_truck_enabled = false;
+
+int total_backup_finished_goods_truck_activations = 0;
+int last_backup_finished_goods_truck_activation_time = -1;
+
+// ---------- Random start time for the finished-transport delay window ----------
+// The start is clipped so that the 50-unit delay window fits inside the 255-unit period.
+// This follows the same style as the existing stochastic disruption timing functions.
+int fg_transport_delay_start_sample() {
+    int s;
+
+    s = fint(random_gamma(2.0, 60.0));
+
+    if (s &gt; FG_TRANSPORT_DELAY_PERIOD - FG_TRANSPORT_DELAY_DURATION) {
+        s = FG_TRANSPORT_DELAY_PERIOD - FG_TRANSPORT_DELAY_DURATION;
+    }
+
+    return s;
+}
+
+// ---------- Check whether the finished-goods transport delay is currently active ----------
+bool finished_transport_delay_currently_active() {
+    return ENABLE_D_FINISHED_TRANSPORT_DELAY &amp;&amp; finished_transport_delay_active;
+}
+
+// ---------- Duration assigned to a new finished-goods transport trip ----------
+int current_t2_trip_duration() {
+    return finished_transport_delay_currently_active()
+           ? FG_TRANSPORT_DELAY_TRIP_TIME
+           : T2_MAX;
+}
+
+// ---------- Check whether a truck is the backup finished-goods truck ----------
+bool is_backup_truck2(truck2_id t) {
+    return t &gt;= NORMAL_TRUCK2_COUNT;
+}
+
+// ---------- Enable backup finished-goods truck when a delay affects transport ----------
+void activate_backup_finished_goods_truck_if_needed() {
+    if (ENABLE_P_BACKUP_FINISHED_GOODS_TRUCK
+        &amp;&amp; finished_transport_delay_currently_active()
+        &amp;&amp; !backup_finished_goods_truck_enabled) {
+
+        backup_finished_goods_truck_enabled = true;
+        total_backup_finished_goods_truck_activations++;
+        last_backup_finished_goods_truck_activation_time = sim_time;
+    }
+}
+
+// ---------- Truck2 availability rule ----------
+// Normal trucks are always enabled.
+// The backup truck is enabled only after the backup-truck practice is activated.
+bool truck2_enabled(truck2_id t) {
+    return !is_backup_truck2(t) || backup_finished_goods_truck_enabled;
+}
+
+// ---------- Check if at least one enabled Truck2 is available ----------
+bool exists_available_enabled_truck2() {
+    int t;
+
+    for (t = 0; t &lt; N_TRUCK2; t++) {
+        if (truck2_enabled(t) &amp;&amp; !truck2_busy[t]) {
+            return true;
+        }
+    }
+
+    return false;
+}
+// ============================================================================
+// 11. V11 PRACTICE KPI COUNTERS
+// ============================================================================
+// These variables track when the resilience practices are triggered and how
+// much additional raw material is added by the emergency replenishment practice.
+// ============================================================================
+
+// ---------- Practice 1: emergency raw replenishment ----------
+int total_emergency_raw_replenishments = 0;
+int last_emergency_raw_replenishment_time = -1;
+int total_emergency_raw_added = 0;
+bool last_shipment_had_emergency_raw = false;
+
+// ---------- Practice 2: adaptive raw safety stock ----------
+int total_adaptive_raw_safety_replenishments = 0;
+int last_adaptive_raw_safety_replenishment_time = -1;
+bool last_shipment_used_adaptive_raw_safety = false;
+
+// ---------- Practice 3: demand surge capacity ----------
+int total_store_parallel_service_activations = 0;
+int total_extra_production_line_activations = 0;
+
+int surge_capacity_activation_count() {
+    return total_store_parallel_service_activations
+         + total_extra_production_line_activations;
+}
+
+
+// ============================================================================
+// 12. WAIT OBSERVATION AND FIRST-WAIT TRACKING
+// ============================================================================
+// Stores the time at which each customer starts waiting. This is used to derive
+// first waiting observations and debugging indicators.
+// ============================================================================
+
+int wait_start_tick[N_CUST];
+
+
+// ============================================================================
+// 13. GLOBAL PERFORMANCE KPIS
+// ============================================================================
+// These compact KPI functions are used directly in the verifier query set.
+// ============================================================================
+
+// ---------- Customer order-time tracking ----------
+int order_time_tick[N_CUST];
+
+// ---------- Total lead time accumulated over served demand ----------
+big_int total_lead_time = 0;
+
+// ---------- Global service ratio ----------
+// Returns the percentage of ordered units that were served.
+int service_ratio_pct() {
+    return total_ordered &gt; 0 ? (100 * total_sold) / total_ordered : 0;
+}
+
+// ---------- Average customer lead time ----------
+// Returns the average delay between customer order and service.
+int avg_lead_time() {
+    return total_sold &gt; 0 ? total_lead_time / total_sold : 0;
+}
+
+
+// ============================================================================
+// 14. PRODUCTION QUALITY DISRUPTION
+// ============================================================================
+// This section models defective production.
+//   - Normal production uses a low gamma-based defect percentage capped at 5%.
+//   - During a quality shock, the defect percentage is higher and capped at 25%.
+// ============================================================================
+
+// ---------- Quality-shock timing ----------
+const int QUALITY_SHOCK_PERIOD = 510;
+
+bool quality_shock_pending = false;
+
+// ---------- Production output counters ----------
+int total_broken_products = 0;
+
+big_int total_good_products     = 0;
+big_int total_produced_products = 0;
+
+int total_production_batches = 0;
+
+// ---------- Normal defect percentage ----------
+int normal_defective_pct() {
+    int p;
+
+    p = fint(random_gamma(1.0, 2.0));
+
+    if (p &gt; 5) p = 5;
+
+    return p;
+}
+
+// ---------- Shock defect percentage ----------
+int shock_defective_pct() {
+    int p;
+
+    p = 18 + fint(random_gamma(1.0, 2.0));
+
+    if (p &gt; 25) p = 25;
+
+    return p;
+}
+
+// ---------- Defect-rate KPI ----------
+// Returns the percentage of produced units that became defective.
+int defect_rate_pct() {
+    return total_produced_products &gt; 0 ?
+           (100 * total_broken_products) / total_produced_products : 0;
+}
+
+// ---------- Finish production batch with quality outcome ----------
+// Converts one production batch into good units and defective units.
+void finish_batch_with_quality() {
+    int defect_pct;
+    int broken_qty;
+    int good_qty;
+
+    if (quality_shock_pending) {
+        defect_pct = shock_defective_pct();
+        quality_shock_pending = false;
+        total_shock_batches++;
+        last_batch_was_shock = true;
+    } else {
+        defect_pct = normal_defective_pct();
+        last_batch_was_shock = false;
+    }
+
+    broken_qty = (PROD_BATCH * defect_pct) / 100;
+    good_qty = PROD_BATCH - broken_qty;
+
+    done_stock += good_qty;
+    total_broken_products += broken_qty;
+    last_defect_pct = defect_pct;
+
+    total_good_products += good_qty;
+    total_produced_products += PROD_BATCH;
+    total_production_batches++;
+}
+
+
+// ============================================================================
+// 15. REAL PRODUCTION BLOCKED-TIME TRACKING
+// ============================================================================
+// This section measures explicit production blocking.
+//
+// Modeling rule:
+//   - Production is always physically impossible without enough raw materials.
+//   - The switch TRACK_PRODUCTION_BLOCKING_KPI controls whether the explicit
+//     BlockedNoRaw state and its KPI counter are activated as a disruption.
+//   - Therefore, can_start_production() remains the production-feasibility rule,
+//     while should_enter_production_block() is used only for the disruption path.
+// ============================================================================
+
+int[-1,1000000] production_block_start[N_PROD] = {-1, -1};
+int total_production_blocked_time[N_PROD] = {0, 0};
+bool production_blocked[N_PROD] = {false, false};
+
+// Note:
+//   The helper function should_enter_production_block() is declared later,
+//   after can_start_production(), because UPPAAL requires a function to be
+//   defined before it is called inside another declaration function.
+
+// ---------- Open real production block ----------
+void open_production_block(prod_id p) {
+    if (!production_blocked[p]) {
+        production_blocked[p] = true;
+        production_block_start[p] = sim_time;
+    }
+}
+
+// ---------- Close real production block ----------
+void close_production_block(prod_id p) {
+    if (production_blocked[p]) {
+        total_production_blocked_time[p] += sim_time - production_block_start[p];
+        production_blocked[p] = false;
+        production_block_start[p] = -1;
+    }
+}
+
+// ---------- Live real production blocked time ----------
+// Includes completed explicit-block periods and the active block period, if any.
+int production_blocked_time_live(prod_id p) {
+    return total_production_blocked_time[p]
+         + (production_blocked[p] ? sim_time - production_block_start[p] : 0);
+}
+
+
+// ============================================================================
+// 16. LATENT PRODUCTION BLOCKED-TIME TRACKING
+// ============================================================================
+// Measures hidden production pressure: finished stock is low enough to justify
+// production, but production cannot effectively start because raw materials are
+// insufficient.
+// ============================================================================
+
+bool latent_production_blocked[N_PROD] = {false, false};
+
+int[-1,1000000] latent_production_block_start[N_PROD] = {-1, -1};
+
+int total_latent_production_blocked_time[N_PROD] = {0, 0};
+int latent_production_block_count[N_PROD] = {0, 0};
+int last_latent_production_block_time[N_PROD] = {0, 0};
+int max_latent_production_block_time[N_PROD] = {0, 0};
+
+// ---------- Open latent production block ----------
+void open_latent_production_block(prod_id p) {
+    if (!latent_production_blocked[p]) {
+        latent_production_blocked[p] = true;
+        latent_production_block_start[p] = sim_time;
+        latent_production_block_count[p]++;
+    }
+}
+
+// ---------- Close latent production block ----------
+void close_latent_production_block(prod_id p) {
+    int bt;
+
+    if (latent_production_blocked[p]) {
+        bt = sim_time - latent_production_block_start[p];
+
+        last_latent_production_block_time[p] = bt;
+        total_latent_production_blocked_time[p] += bt;
+
+        if (bt &gt; max_latent_production_block_time[p]) {
+            max_latent_production_block_time[p] = bt;
+        }
+
+        latent_production_blocked[p] = false;
+        latent_production_block_start[p] = -1;
+    }
+}
+
+// ---------- Live latent production blocked time ----------
+// Includes both completed latent-block periods and the active period, if any.
+int latent_production_blocked_time_live(prod_id p) {
+    return total_latent_production_blocked_time[p]
+         + (latent_production_blocked[p] ? sim_time - latent_production_block_start[p] : 0);
+}
+
+
+// ============================================================================
+// 17. STORE REQUEST FIFO MANAGEMENT
+// ============================================================================
+// Stores send replenishment requests when inventory becomes low. Requests are
+// served by Truck2 according to FIFO order.
+// ============================================================================
+
+// ---------- Truck-to-store assignment ----------
+store_id target_store_of_truck[N_TRUCK2];
+
+// ---------- FIFO request tracking ----------
+int store_request_time[N_STORE];
+bool store_waiting[N_STORE] = {false, false, false};
+int store_order_sequence = 0;
+
+// ---------- Check if any store is waiting ----------
+bool exists_store_waiting() {
+    int s;
+
+    for (s = 0; s &lt; N_STORE; s++) {
+        if (store_waiting[s]) return true;
+    }
+
+    return false;
+}
+
+// ---------- Get the oldest store request ----------
+store_id get_next_store_request() {
+    store_id best = 0;
+    int min_time = 32767;
+    int s;
+
+    for (s = 0; s &lt; N_STORE; s++) {
+        if (store_waiting[s] &amp;&amp; store_request_time[s] &lt; min_time) {
+            min_time = store_request_time[s];
+            best = s;
+        }
+    }
+
+    return best;
+}
+
+// ---------- Register a new store replenishment request ----------
+void register_store_request(store_id s) {
+    if (!store_waiting[s] &amp;&amp; !inventory_request_pending[s]) {
+        store_request_time[s] = ++store_order_sequence;
+        store_waiting[s] = true;
+        inventory_request_pending[s] = true;
+    }
+}
+
+// ---------- Assign the oldest store request to a truck ----------
+void dispatch_oldest_store_request(truck2_id t) {
+    store_id s = get_next_store_request();
+
+    target_store_of_truck[t] = s;
+    store_waiting[s] = false;
+    inventory_request_pending[s] = false;
+}
+
+// ---------- Check whether the oldest waiting store can be shipped ----------
+bool can_ship_oldest_store() {
+    store_id s;
+
+    if (!exists_store_waiting())
+        return false;
+
+    s = get_next_store_request();
+
+    return done_stock &gt;= SHIP_BATCH &amp;&amp;
+           (inventory_stock[s] + incoming_inventory[s] + SHIP_BATCH) &lt;= max_stock[s];
+}
+
+
+// ============================================================================
+// 18. CUSTOMER REQUEST FIFO MANAGEMENT
+// ============================================================================
+// Customer orders are tracked in FIFO order. Store templates then serve the
+// oldest waiting customer assigned to their store.
+// ============================================================================
+
+int order_sequence = 0;
+int request_time[N_CUST];
+bool customer_waiting[N_CUST];
+
+
+// ============================================================================
+// 19. CUSTOMER-TO-STORE MAPPING
+// ============================================================================
+// The 71 customers are divided across the three stores.
+// ============================================================================
+
+// ---------- Customer store assignment ----------
+store_id cust_store(cust_id c) {
+    if (c &lt; 21) return 0;   // Store 0: customers 0..20
+    if (c &lt; 51) return 1;   // Store 1: customers 21..50
+    return 2;               // Store 2: customers 51..70
+}
+
+// ---------- Customer rank inside assigned store ----------
+int rank_in_store(cust_id c) {
+    if (c &lt; 21) return c;
+    if (c &lt; 51) return c - 21;
+    return c - 51;
+}
+
+
+// ============================================================================
+// 20. STORE-SPECIFIC CUSTOMER WAITING SEARCH
+// ============================================================================
+// These helpers find whether a store has waiting customers and select the oldest
+// waiting customer assigned to that store.
+// ============================================================================
+
+// ---------- Check if a store has waiting customers ----------
+bool exists_waiting_for_store(store_id s) {
+    int i;
+
+    for (i = 0; i &lt; N_CUST; i++) {
+        if (customer_waiting[i] &amp;&amp; cust_store(i) == s) return true;
+    }
+
+    return false;
+}
+
+// ---------- Select the oldest waiting customer for a store ----------
+cust_id get_next_customer_for_store(store_id s) {
+    cust_id best_i = 0;
+    int min_time = 32767;
+    int i;
+
+    for (i = 0; i &lt; N_CUST; i++) {
+        if (customer_waiting[i] &amp;&amp;
+            cust_store(i) == s &amp;&amp;
+            request_time[i] &lt; min_time) {
+            min_time = request_time[i];
+            best_i = i;
+        }
+    }
+
+    return best_i;
+}
+
+
+// ============================================================================
+// 21. STORE-LEVEL SERVICE, STOCKOUT, AND RECOVERY KPIS
+// ============================================================================
+// This section measures local store resilience:
+//   - ordered and sold quantities by store
+//   - first stockout observation
+//   - batch-level stockout state and duration
+//   - batch-level recovery time
+//   - store availability percentage
+// ============================================================================
+
+// ---------- Per-store service counters ----------
+int total_ordered_store[N_STORE] = {0, 0, 0};
+int total_sold_store[N_STORE]    = {0, 0, 0};
+
+// ---------- First stockout observation ----------
+int t_at_empty[N_STORE] = {-1, -1, -1};
+
+// ---------- Batch-level stockout state ----------
+int stockout_start_time[N_STORE]     = {-1, -1, -1};
+int total_stockout_duration[N_STORE] = {0, 0, 0};
+bool in_stockout[N_STORE]            = {false, false, false};
+
+int stockout_count[N_STORE]        = {0, 0, 0};
+int stockout_required_qty[N_STORE] = {0, 0, 0};
+
+// ---------- Batch-level recovery metrics ----------
+int max_recovery_time[N_STORE] = {0, 0, 0};
+
+// ---------- Open batch-level stockout ----------
+// A store enters stockout when its inventory becomes lower than the required
+// customer order quantity.
+void open_stockout_if_needed(store_id s, int required_qty) {
+    if (inventory_stock[s] &lt; required_qty) {
+
+        if (!in_stockout[s]) {
+            in_stockout[s] = true;
+            stockout_start_time[s] = sim_time;
+            stockout_required_qty[s] = required_qty;
+            stockout_count[s]++;
+
+            if (t_at_empty[s] &lt; 0) {
+                t_at_empty[s] = sim_time;
+                orders_at_empty[s] = total_ordered_store[s];
+                served_at_empty[s] = total_sold_store[s];
+            }
+        }
+        else {
+            if (required_qty &gt; stockout_required_qty[s]) {
+                stockout_required_qty[s] = required_qty;
+            }
+        }
+    }
+}
+
+// ---------- Close batch-level stockout ----------
+// Batch-level recovery occurs when inventory is again sufficient to satisfy the
+// required customer order quantity.
+void close_stockout_if_needed(store_id s) {
+    if (inventory_stock[s] &gt;= stockout_required_qty[s] &amp;&amp; in_stockout[s]) {
+        int rt;
+
+        rt = sim_time - stockout_start_time[s];
+
+        total_stockout_duration[s] += rt;
+
+        last_recovery_time[s] = rt;
+        total_recovery_time[s] += rt;
+        recovery_count[s]++;
+
+        if (first_recovery_time[s] &lt; 0)
+            first_recovery_time[s] = rt;
+
+        if (rt &gt; max_recovery_time[s])
+            max_recovery_time[s] = rt;
+
+        recovered_once[s] = true;
+        in_stockout[s] = false;
+        stockout_start_time[s] = -1;
+        stockout_required_qty[s] = 0;
+    }
+}
+
+// ---------- Live stockout duration ----------
+// Includes both completed stockout time and current stockout time, if active.
+int stockout_duration_live(store_id s) {
+    return total_stockout_duration[s]
+         + (in_stockout[s] ? (sim_time - stockout_start_time[s]) : 0);
+}
+
+// ---------- Store availability percentage ----------
+// Availability is the percentage of simulated time during which the store is
+// not in batch-level stockout.
+int availability_pct(store_id s) {
+    return sim_time &gt; 0 ?
+           100 - (100 * stockout_duration_live(s)) / sim_time : 100;
+}
+
+
+// ============================================================================
+// 22. SAFE-STOCK RECOVERY TRACKING
+// ============================================================================
+// This KPI is stricter than batch-level recovery. It measures how long a store
+// needs to return to its safe inventory threshold after falling below it.
+// ============================================================================
+
+// ---------- Safe-stock recovery state ----------
+bool in_safe_stock_recovery[N_STORE] = {false, false, false};
+
+int[-1,1000000] safe_stock_recovery_start_time[N_STORE] = {-1, -1, -1};
+
+int last_safe_stock_recovery_time[N_STORE] = {0, 0, 0};
+int max_safe_stock_recovery_time[N_STORE] = {0, 0, 0};
+
+// ---------- Open safe-stock recovery ----------
+void open_safe_stock_recovery_if_needed(store_id s) {
+    if (inventory_stock[s] &lt; safe_inventory[s]) {
+        if (!in_safe_stock_recovery[s]) {
+            in_safe_stock_recovery[s] = true;
+            safe_stock_recovery_start_time[s] = sim_time;
+        }
+    }
+}
+
+// ---------- Close safe-stock recovery ----------
+void close_safe_stock_recovery_if_needed(store_id s) {
+    int rt;
+
+    if (in_safe_stock_recovery[s] &amp;&amp; inventory_stock[s] &gt;= safe_inventory[s]) {
+        rt = sim_time - safe_stock_recovery_start_time[s];
+
+        last_safe_stock_recovery_time[s] = rt;
+        total_safe_stock_recovery_time[s] += rt;
+        safe_stock_recovery_count[s]++;
+
+        if (rt &gt; max_safe_stock_recovery_time[s]) {
+            max_safe_stock_recovery_time[s] = rt;
+        }
+
+        in_safe_stock_recovery[s] = false;
+        safe_stock_recovery_start_time[s] = -1;
+    }
+}
+
+// ---------- Store stock update after serving a customer ----------
+// Updates store inventory and activates the corresponding stockout/recovery
+// trackers if the stock level becomes critical.
+void update_stock_and_track(store_id s, int qty) {
+    inventory_stock[s] -= qty;
+
+    open_stockout_if_needed(s, qty);
+    open_safe_stock_recovery_if_needed(s);
+}
+
+
+// ============================================================================
+// 23. V11.2 COMPACT RESILIENCE KPI AGGREGATION FUNCTIONS
+// ============================================================================
+// These functions reduce the number of verifier queries by combining store-level
+// KPIs into global worst-case resilience indicators.
+// ============================================================================
+
+// ---------- Worst store availability across all stores ----------
+int min_availability_pct_all() {
+    int best;
+
+    best = availability_pct(0);
+
+    if (availability_pct(1) &lt; best) {
+        best = availability_pct(1);
+    }
+
+    if (availability_pct(2) &lt; best) {
+        best = availability_pct(2);
+    }
+
+    return best;
+}
+
+// ---------- Maximum live stockout duration across all stores ----------
+int max_stockout_duration_live_all() {
+    int worst;
+
+    worst = stockout_duration_live(0);
+
+    if (stockout_duration_live(1) &gt; worst) {
+        worst = stockout_duration_live(1);
+    }
+
+    if (stockout_duration_live(2) &gt; worst) {
+        worst = stockout_duration_live(2);
+    }
+
+    return worst;
+}
+
+// ---------- Live safe-stock recovery time for one store ----------
+// Returns the maximum observed safe-stock recovery time, including the active
+// recovery period if the store is still recovering.
+int safe_stock_recovery_time_live(store_id s) {
+    int v;
+
+    v = max_safe_stock_recovery_time[s];
+
+    if (in_safe_stock_recovery[s]) {
+        if (sim_time - safe_stock_recovery_start_time[s] &gt; v) {
+            v = sim_time - safe_stock_recovery_start_time[s];
+        }
+    }
+
+    return v;
+}
+
+// ---------- Maximum live safe-stock recovery time across all stores ----------
+int max_safe_stock_recovery_time_live_all() {
+    int worst;
+
+    worst = safe_stock_recovery_time_live(0);
+
+    if (safe_stock_recovery_time_live(1) &gt; worst) {
+        worst = safe_stock_recovery_time_live(1);
+    }
+
+    if (safe_stock_recovery_time_live(2) &gt; worst) {
+        worst = safe_stock_recovery_time_live(2);
+    }
+
+    return worst;
+}
+
+
+// ============================================================================
+// 24. RAW-MATERIAL REPLENISHMENT LOGIC
+// ============================================================================
+// This section detects low raw-material levels, reserves incoming raw-material
+// bundles, delivers them, and consumes raw materials for production.
+// ============================================================================
+
+// ---------- Emergency raw-material replenishment trigger ----------
+// This practice targets raw material 0, AA-R02 Blueberries, because it is the
+// limiting raw material in the current model configuration.
+bool emergency_raw_replenishment_needed() {
+    int m;
+    bool missing_raw;
+
+    missing_raw = false;
+
+    for (m = 0; m &lt; N_RM; m++) {
+        if (raw_stock[m] &lt; RAW_USE_PER_BATCH[m]) {
+            missing_raw = true;
+        }
+    }
+
+    return ENABLE_P_EMERGENCY_RAW_REPLENISHMENT
+        &amp;&amp; (
+            (raw_stock[0] + incoming_raw[0]) &lt; (2 * RAW_USE_PER_BATCH[0])
+            ||
+            (done_stock &lt; safe_done + PROD_BATCH &amp;&amp; missing_raw)
+        );
+}
+
+// ---------- Effective raw-material safety threshold ----------
+// Resilience practices can raise the trigger threshold for raw material 0.
+int effective_safe_raw(rm_id m) {
+    int target;
+
+    target = safe_raw[m];
+
+    // Practice 1: emergency replenishment creates a moderate earlier trigger.
+    if (ENABLE_P_EMERGENCY_RAW_REPLENISHMENT &amp;&amp; m == 0) {
+        if (safe_raw[m] + RAW_USE_PER_BATCH[m] &gt; target) {
+            target = safe_raw[m] + RAW_USE_PER_BATCH[m];
+        }
+    }
+
+    // Practice 2: adaptive safety stock creates a stronger preventive trigger.
+    if (ENABLE_P_ADAPTIVE_RAW_SAFETY_STOCK &amp;&amp; m == 0) {
+        if (safe_raw[m] + 2 * RAW_USE_PER_BATCH[m] &gt; target) {
+            target = safe_raw[m] + 2 * RAW_USE_PER_BATCH[m];
+        }
+    }
+
+    return target;
+}
+
+// ---------- Check if one raw material is below its effective threshold ----------
+bool raw_below_threshold(rm_id m) {
+    return (raw_stock[m] + incoming_raw[m]) &lt; effective_safe_raw(m);
+}
+
+// ---------- Detect adaptive raw safety-stock usage ----------
+// True only when raw material 0 is below the adaptive threshold but not yet below
+// the original V10 threshold.
+bool adaptive_raw_safety_used() {
+    return ENABLE_P_ADAPTIVE_RAW_SAFETY_STOCK
+        &amp;&amp; (raw_stock[0] + incoming_raw[0] &lt; effective_safe_raw(0))
+        &amp;&amp; (raw_stock[0] + incoming_raw[0] &gt;= safe_raw[0]);
+}
+
+// ---------- Check if any raw material needs replenishment ----------
+bool exists_bundle_replenishment() {
+    int m;
+
+    for (m = 0; m &lt; N_RM; m++) {
+        if (raw_below_threshold(m)) return true;
+    }
+
+    return false;
+}
+
+// ---------- Reserve a complete raw-material bundle ----------
+// If the raw-shortage disruption is active, the reserved quantities are reduced.
+// If resilience practices are active, raw material 0 can receive additional or
+// earlier replenishment.
+void reserve_raw_bundle() {
+    int m;
+    int q;
+    bool use_emergency_raw;
+    bool use_adaptive_raw_safety;
+
+    current_raw_shipment_is_short = ENABLE_D_RAW_SHORTAGE &amp;&amp; raw_shortage_remaining &gt; 0;
+    use_emergency_raw = emergency_raw_replenishment_needed();
+    use_adaptive_raw_safety = adaptive_raw_safety_used();
+
+    for (m = 0; m &lt; N_RM; m++) {
+        if (current_raw_shipment_is_short) {
+            q = RAW_BATCH[m] / 2;
+        } else {
+            q = RAW_BATCH[m];
+        }
+
+        // Emergency top-up for the bottleneck raw material:
+        // 0 = AA-R02 Blueberries.
+        if (use_emergency_raw &amp;&amp; m == 0) {
+            q += RAW_USE_PER_BATCH[0];
+        }
+
+        incoming_raw[m] += q;
+        last_raw_shipment_qty[m] = q;
+    }
+
+    if (use_emergency_raw) {
+        total_emergency_raw_replenishments++;
+        last_emergency_raw_replenishment_time = sim_time;
+        total_emergency_raw_added += RAW_USE_PER_BATCH[0];
+        last_shipment_had_emergency_raw = true;
+    } else {
+        last_shipment_had_emergency_raw = false;
+    }
+
+    if (use_adaptive_raw_safety) {
+        total_adaptive_raw_safety_replenishments++;
+        last_adaptive_raw_safety_replenishment_time = sim_time;
+        last_shipment_used_adaptive_raw_safety = true;
+    } else {
+        last_shipment_used_adaptive_raw_safety = false;
+    }
+
+    if (current_raw_shipment_is_short) {
+        raw_shortage_remaining--;
+    }
+}
+
+// ---------- Deliver a complete raw-material bundle ----------
+// Transfers the last reserved quantities from incoming_raw[] to raw_stock[].
+void deliver_raw_bundle() {
+    int m;
+    int q;
+    int total_q = 0;
+
+    for (m = 0; m &lt; N_RM; m++) {
+        q = last_raw_shipment_qty[m];
+
+        raw_stock[m] += q;
+        incoming_raw[m] -= q;
+        total_raw_by_material[m] += q;
+
+        total_q += q;
+    }
+
+    total_raw_from_supplier[0] += total_q;
+
+    if (current_raw_shipment_is_short) {
+        total_raw_shortage_events++;
+        last_raw_shortage_time = sim_time;
+        last_raw_shipment_was_short = true;
+    } else {
+        last_raw_shipment_was_short = false;
+    }
+}
+
+// ---------- Check if enough raw materials exist for one production batch ----------
+bool has_all_materials_for_batch() {
+    int m;
+
+    for (m = 0; m &lt; N_RM; m++) {
+        if (raw_stock[m] &lt; RAW_USE_PER_BATCH[m]) return false;
+    }
+
+    return true;
+}
+
+// ---------- Production feasibility condition ----------
+bool can_start_production() {
+    return has_all_materials_for_batch();
+}
+
+// ---------- Production-blocking activation ----------
+// Returns true only when the production-blocking disruption is activated.
+bool production_blocking_enabled() {
+    return TRACK_PRODUCTION_BLOCKING_KPI;
+}
+
+// ---------- Explicit production-blocking condition ----------
+// This function should be used on transitions that enter BlockedNoRaw.
+bool should_enter_production_block() {
+    return production_blocking_enabled() &amp;&amp; !can_start_production();
+}
+
+// ---------- Consume raw materials for one production batch ----------
+void consume_materials_for_batch() {
+    int m;
+
+    if (has_all_materials_for_batch()) {
+        for (m = 0; m &lt; N_RM; m++) {
+            raw_stock[m] -= RAW_USE_PER_BATCH[m];
+        }
+    }
+}
+
+
+// ============================================================================
+// 25. PRODUCTION REQUEST FLAGS
+// ============================================================================
+// Indicates whether a production request has already been sent and is waiting
+// to be completed.
+// ============================================================================
+
+bool production_request_pending[N_PROD] = {false, false};
+
+
+// ============================================================================
+// 26. DEMAND SHOCK MECHANISM
+// ============================================================================
+// Models a high-demand window. During the shock, order delays are reduced and
+// customer order quantities can increase.
+// ============================================================================
+
+// ---------- Demand-shock timing ----------
+const int DEMAND_SHOCK_PERIOD = 510;
+
+bool demand_shock_active = false;
+
+int demand_shock_pct = 0;          // 5..10%
+int demand_shock_duration = 0;     // about 50..70 time units
+int demand_shock_start_offset = 0; // random start inside the period
+
+// ---------- Demand-shock counters ----------
+int total_demand_shocks = 0;
+int last_demand_shock_start = -1;
+int shock_orders_made = 0;
+
+// ---------- Customer order quantity ----------
+int[0,100] order_qty[N_CUST];
+
+// ---------- Demand-shock percentage sample ----------
+int demand_shock_pct_sample() {
+    int p;
+
+    p = 5 + fint(random_gamma(1.0, 2.0));
+
+    if (p &gt; 10) p = 10;
+
+    return p;
+}
+
+// ---------- Demand-shock duration sample ----------
+int demand_shock_duration_sample() {
+    int d;
+
+    d = 50 + fint(random_gamma(1.0, 10.0));
+
+    if (d &gt; 70) d = 70;
+
+    return d;
+}
+
+// ---------- Demand-shock start-time sample ----------
+// The start is clipped so that the shock window fits inside the period.
+int demand_shock_start_sample() {
+    int s;
+
+    s = fint(random_gamma(2.0, 250.0));
+
+    if (s &gt; DEMAND_SHOCK_PERIOD - 70)
+        s = DEMAND_SHOCK_PERIOD - 70;
+
+    return s;
+}
+
+// ---------- Apply demand shock to customer order delay ----------
+// During the shock, the delay is reduced, increasing the demand rate.
+int apply_demand_shock(int base_delay) {
+    int d;
+
+    if (ENABLE_D_DEMAND_SHOCK &amp;&amp; demand_shock_active)
+        d = base_delay - (base_delay * demand_shock_pct) / 100;
+    else
+        d = base_delay;
+
+    return d &lt; 1 ? 1 : d;
+}
+
+
+
+// ---------- Shock order quantity ----------
+// During the shock, order quantity is sampled between about 11 and 13.
+int shock_order_qty_sample() {
+    int q;
+
+    q = 11 + fint(random_gamma(1.0, 1.0));
+
+    if (q &gt; 13) q = 13;
+
+    return q;
+}
+
+// ---------- Current customer order quantity ----------
+// Uses normal order quantity outside shock and shock quantity during shock.
+int current_order_qty_sample() {
+    return (ENABLE_D_DEMAND_SHOCK &amp;&amp; demand_shock_active) ? shock_order_qty_sample() : ORDER_BATCH;
+}
+
+// ---------- Demand surge-capacity practice ----------
+// Active only during an actual demand-shock window.
+bool surge_capacity_active() {
+    return ENABLE_P_DEMAND_SURGE_CAPACITY
+        &amp;&amp; ENABLE_D_DEMAND_SHOCK
+        &amp;&amp; demand_shock_active;
+}
+
+// ---------- Production-line availability ----------
+// Line 0 is the normal line.
+// Line 1 is available only during demand-shock surge capacity.
+bool production_line_enabled(prod_id p) {
+    return p == 0 || surge_capacity_active();
+}
+
+// ---------- Check if at least one enabled production line can still receive a request ----------
+bool exists_available_enabled_production_line() {
+    int i;
+
+    for (i = 0; i &lt; N_PROD; i++) {
+        if (production_line_enabled(i) &amp;&amp; !production_request_pending[i]) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+int max_production_blocked_time_live_all() {
+    int i;
+    int worst;
+
+    worst = production_blocked_time_live(0);
+
+    for (i = 1; i &lt; N_PROD; i++) {
+        if (production_blocked_time_live(i) &gt; worst) {
+            worst = production_blocked_time_live(i);
+        }
+    }
+
+    return worst;
+}
+
+int max_latent_production_blocked_time_live_all() {
+    int i;
+    int worst;
+
+    worst = latent_production_blocked_time_live(0);
+
+    for (i = 1; i &lt; N_PROD; i++) {
+        if (latent_production_blocked_time_live(i) &gt; worst) {
+            worst = latent_production_blocked_time_live(i);
+        }
+    }
+
+    return worst;
+}
+
+int max_latent_production_block_time_all() {
+    int i;
+    int worst;
+
+    worst = max_latent_production_block_time[0];
+
+    for (i = 1; i &lt; N_PROD; i++) {
+        if (max_latent_production_block_time[i] &gt; worst) {
+            worst = max_latent_production_block_time[i];
+        }
+    }
+
+    return worst;
+}
+
+
+// ============================================================================
+// 27. SYNCHRONIZATION CHANNELS
+// ============================================================================
+// Broadcast channels synchronize customers, stores, transport, production, and
+// raw-material delivery templates.
+// ============================================================================
+
+broadcast chan notify_inventory_low[N_STORE];
+
+broadcast chan request_finished_ship[N_TRUCK2];
+broadcast chan finished_delivered[N_TRUCK2];
+
+broadcast chan customer_ordered[N_CUST];
+broadcast chan customer_served[N_CUST];
+
+broadcast chan request_production[N_PROD];
+broadcast chan production_done[N_PROD];
+
+broadcast chan request_raw_material[N_TRUCK1];
+broadcast chan raw_delivered;
+</declaration>
+	<template>
+		<name>RawMaterialShortage</name>
+		<declaration>clock r;</declaration>
+		<location id="id0" x="0" y="0">
+			<name x="-102" y="-8">WaitPeriod</name>
+			<label kind="invariant" x="-416" y="17">!ENABLE_D_RAW_SHORTAGE || r &lt;= RAW_SHORTAGE_PERIOD</label>
+		</location>
+		<location id="id1" x="493" y="8">
+			<name x="510" y="0">TriggerShortage</name>
+			<committed/>
+		</location>
+		<init ref="id0"/>
+		<transition id="id2">
+			<source ref="id1"/>
+			<target ref="id0"/>
+			<nail x="459" y="51"/>
+			<nail x="42" y="51"/>
+		</transition>
+		<transition id="id3">
+			<source ref="id0"/>
+			<target ref="id1"/>
+			<label kind="guard" x="42" y="-144">ENABLE_D_RAW_SHORTAGE &amp;&amp; r &gt;= RAW_SHORTAGE_PERIOD</label>
+			<label kind="assignment" x="42" y="-119">r = 0,
+raw_shortage_remaining = RAW_SHORTAGE_EVENTS_PER_PERIOD,
+total_raw_shortage_periods++,
+last_raw_shortage_period_time = sim_time</label>
+			<nail x="42" y="-42"/>
+			<nail x="442" y="-42"/>
+		</transition>
+	</template>
+	<template>
+		<name>FinishedGoodsTransportDelay</name>
+		<declaration>clock fgd;</declaration>
+		<location id="id4" x="-195" y="-93">
+			<name x="-348" y="-102">SetPeriodParams</name>
+			<committed/>
+		</location>
+		<location id="id5" x="246" y="-85">
+			<name x="255" y="-110">BeforeDelay</name>
+			<label kind="invariant" x="263" y="-85">fgd &lt;= FG_TRANSPORT_DELAY_PERIOD</label>
+		</location>
+		<location id="id6" x="246" y="119">
+			<name x="263" y="110">DuringDelay</name>
+			<label kind="invariant" x="236" y="136">fgd &lt;= FG_TRANSPORT_DELAY_PERIOD</label>
+		</location>
+		<location id="id7" x="-195" y="119">
+			<name x="-289" y="102">AfterDelay</name>
+			<label kind="invariant" x="-493" y="127">fgd &lt;= FG_TRANSPORT_DELAY_PERIOD</label>
+		</location>
+		<init ref="id4"/>
+		<transition id="id8">
+			<source ref="id7"/>
+			<target ref="id4"/>
+			<label kind="guard" x="-195" y="-21">fgd &gt;= FG_TRANSPORT_DELAY_PERIOD</label>
+			<label kind="assignment" x="-195" y="13">fgd = 0</label>
+		</transition>
+		<transition id="id9">
+			<source ref="id6"/>
+			<target ref="id7"/>
+			<label kind="guard" x="-187" y="153">fgd &gt;= fg_transport_delay_start_offset + FG_TRANSPORT_DELAY_DURATION</label>
+			<label kind="assignment" x="-187" y="178">finished_transport_delay_active = false,
+backup_finished_goods_truck_enabled = false</label>
+		</transition>
+		<transition id="id10">
+			<source ref="id5"/>
+			<target ref="id6"/>
+			<label kind="guard" x="246" y="-17">fgd &gt;= fg_transport_delay_start_offset</label>
+			<label kind="assignment" x="246" y="17">finished_transport_delay_active = ENABLE_D_FINISHED_TRANSPORT_DELAY,
+total_finished_transport_delay_windows += ENABLE_D_FINISHED_TRANSPORT_DELAY ? 1 : 0,
+last_finished_transport_delay_start = ENABLE_D_FINISHED_TRANSPORT_DELAY ? sim_time : last_finished_transport_delay_start</label>
+		</transition>
+		<transition id="id11">
+			<source ref="id4"/>
+			<target ref="id5"/>
+			<label kind="assignment" x="-195" y="-195">fgd = 0,
+fg_transport_delay_start_offset = fg_transport_delay_start_sample(),
+finished_transport_delay_active = false,
+backup_finished_goods_truck_enabled = false</label>
+		</transition>
+	</template>
+	<template>
+		<name>QualityShock</name>
+		<declaration>clock q;</declaration>
+		<location id="id12" x="0" y="0">
+			<name x="25" y="-8">WaitPeriod</name>
+			<label kind="invariant" x="-10" y="17">!ENABLE_D_QUALITY_SHOCK || q &lt;= QUALITY_SHOCK_PERIOD</label>
+		</location>
+		<location id="id13" x="-331" y="-8">
+			<name x="-459" y="-25">TriggerShock</name>
+			<committed/>
+		</location>
+		<init ref="id12"/>
+		<transition id="id14">
+			<source ref="id13"/>
+			<target ref="id12"/>
+			<nail x="-297" y="-68"/>
+			<nail x="-93" y="-68"/>
+		</transition>
+		<transition id="id15">
+			<source ref="id12"/>
+			<target ref="id13"/>
+			<label kind="guard" x="-272" y="68">ENABLE_D_QUALITY_SHOCK &amp;&amp; q &gt;= QUALITY_SHOCK_PERIOD</label>
+			<label kind="assignment" x="-272" y="93">q = 0,
+quality_shock_pending = true,
+total_shock_events++,
+last_shock_trigger_time = sim_time</label>
+			<nail x="-76" y="59"/>
+			<nail x="-272" y="59"/>
+		</transition>
+	</template>
+	<template>
+		<name>DemandShock</name>
+		<declaration>clock q;</declaration>
+		<location id="id16" x="-59" y="-136">
+			<name x="-69" y="-170">SetDayParams</name>
+			<committed/>
+		</location>
+		<location id="id17" x="-76" y="161">
+			<name x="-119" y="178">DuringShock</name>
+			<label kind="invariant" x="-119" y="195">q &lt;= DEMAND_SHOCK_PERIOD</label>
+		</location>
+		<location id="id18" x="-255" y="-8">
+			<name x="-357" y="-34">AfterShock</name>
+			<label kind="invariant" x="-484" y="-17">q &lt;= DEMAND_SHOCK_PERIOD</label>
+		</location>
+		<location id="id19" x="153" y="17">
+			<name x="170" y="-8">BeforeShock</name>
+			<label kind="invariant" x="170" y="8">q &lt;= DEMAND_SHOCK_PERIOD</label>
+		</location>
+		<init ref="id16"/>
+		<transition id="id20">
+			<source ref="id18"/>
+			<target ref="id16"/>
+			<label kind="guard" x="-314" y="-127">q &gt;= DEMAND_SHOCK_PERIOD</label>
+			<label kind="assignment" x="-178" y="-110">q = 0</label>
+		</transition>
+		<transition id="id21">
+			<source ref="id17"/>
+			<target ref="id18"/>
+			<label kind="guard" x="-688" y="34">q &gt;= demand_shock_start_offset + demand_shock_duration</label>
+			<label kind="assignment" x="-459" y="51">demand_shock_active = false</label>
+		</transition>
+		<transition id="id22">
+			<source ref="id19"/>
+			<target ref="id17"/>
+			<label kind="guard" x="59" y="68">q &gt;= demand_shock_start_offset</label>
+			<label kind="assignment" x="59" y="93">demand_shock_active = ENABLE_D_DEMAND_SHOCK,
+total_demand_shocks += ENABLE_D_DEMAND_SHOCK ? 1 : 0,
+last_demand_shock_start = ENABLE_D_DEMAND_SHOCK ? sim_time : last_demand_shock_start</label>
+		</transition>
+		<transition id="id23">
+			<source ref="id16"/>
+			<target ref="id19"/>
+			<label kind="assignment" x="68" y="-153">q = 0,
+demand_shock_pct = demand_shock_pct_sample(),
+demand_shock_duration = demand_shock_duration_sample(),
+demand_shock_start_offset = demand_shock_start_sample(),
+demand_shock_active = false</label>
+		</transition>
+	</template>
+	<template>
+		<name>TimeTicker</name>
+		<declaration>clock t;</declaration>
+		<location id="id24" x="0" y="0">
+			<name x="-34" y="8">Ticking</name>
+			<label kind="invariant" x="-25" y="34">t &lt;= 1</label>
+		</location>
+		<init ref="id24"/>
+		<transition id="id25">
+			<source ref="id24"/>
+			<target ref="id24"/>
+			<label kind="guard" x="-51" y="-136">t == 1</label>
+			<label kind="assignment" x="-85" y="-110">sim_time++, t = 0</label>
+			<nail x="-76" y="-76"/>
+			<nail x="85" y="-85"/>
+		</transition>
+	</template>
+	<template>
+		<name>Transport2</name>
+		<parameter>truck2_id id</parameter>
+		<declaration>clock t2;</declaration>
+		<location id="id26" x="-391" y="-178">
+			<name x="-401" y="-212">Available</name>
+		</location>
+		<location id="id27" x="221" y="-178">
+			<name x="211" y="-212">InTransit</name>
+			<label kind="invariant" x="211" y="-161">t2 &lt;= t2_trip_duration[id]</label>
+		</location>
+		<init ref="id26"/>
+		<transition id="id28">
+			<source ref="id27"/>
+			<target ref="id26"/>
+			<label kind="guard" x="-136" y="-102">t2 &gt;= t2_trip_duration[id]</label>
+			<label kind="synchronisation" x="-153" y="-76">finished_delivered[id]!</label>
+			<label kind="assignment" x="-467" y="-34">inventory_stock[target_store_of_truck[id]] += SHIP_BATCH,
+incoming_inventory[target_store_of_truck[id]] -= SHIP_BATCH,
+truck2_busy[id] = false,
+close_stockout_if_needed(target_store_of_truck[id]),
+close_safe_stock_recovery_if_needed(target_store_of_truck[id])</label>
+			<nail x="153" y="-110"/>
+			<nail x="-289" y="-110"/>
+		</transition>
+		<transition id="id29">
+			<source ref="id26"/>
+			<target ref="id27"/>
+			<label kind="guard" x="-246" y="-246">truck2_enabled(id) &amp;&amp; !truck2_busy[id] &amp;&amp; done_stock &gt;= SHIP_BATCH</label>
+			<label kind="synchronisation" x="-238" y="-229">request_finished_ship[id]?</label>
+			<label kind="assignment" x="-246" y="-433">truck2_busy[id] = true,
+done_stock -= SHIP_BATCH,
+t2 = 0,
+t2_trip_duration[id] = current_t2_trip_duration(),
+t2_trip_was_delayed[id] = finished_transport_delay_currently_active(),
+total_finished_transport_delayed_trips += finished_transport_delay_currently_active() ? 1 : 0,
+last_finished_transport_delayed_trip_time = finished_transport_delay_currently_active() ? sim_time : last_finished_transport_delayed_trip_time,
+activate_backup_finished_goods_truck_if_needed(),
+incoming_inventory[target_store_of_truck[id]] += SHIP_BATCH</label>
+		</transition>
+	</template>
+	<template>
+		<name>Transport1</name>
+		<parameter>truck1_id id</parameter>
+		<declaration>clock t1;
+</declaration>
+		<location id="id30" x="-578" y="-255">
+			<name x="-595" y="-289">Available</name>
+		</location>
+		<location id="id31" x="-119" y="-255">
+			<name x="-129" y="-289">InTransit</name>
+			<label kind="invariant" x="-136" y="-306">t1 &lt;= T1_MAX</label>
+		</location>
+		<init ref="id30"/>
+		<transition id="id32">
+			<source ref="id31"/>
+			<target ref="id30"/>
+			<label kind="guard" x="-357" y="-187">t1 &gt;= T1_MIN</label>
+			<label kind="synchronisation" x="-357" y="-170">raw_delivered!</label>
+			<label kind="assignment" x="-518" y="-153">deliver_raw_bundle(),
+truck1_busy[id] = false</label>
+			<nail x="-170" y="-195"/>
+			<nail x="-527" y="-195"/>
+		</transition>
+		<transition id="id33">
+			<source ref="id30"/>
+			<target ref="id31"/>
+			<label kind="guard" x="-442" y="-331">!truck1_busy[id]</label>
+			<label kind="synchronisation" x="-442" y="-314">request_raw_material[id]?</label>
+			<label kind="assignment" x="-442" y="-297">truck1_busy[id] = true, t1 = 0</label>
+		</transition>
+	</template>
+	<template>
+		<name>ProductionUnit</name>
+		<parameter>prod_id id</parameter>
+		<declaration>clock p;</declaration>
+		<location id="id34" x="-289" y="-161">
+			<name x="-299" y="-195">Idle</name>
+		</location>
+		<location id="id35" x="399" y="-161">
+			<name x="374" y="-136">Producing</name>
+			<label kind="invariant" x="357" y="-102">p &lt;= PROD_MAX</label>
+		</location>
+		<location id="id36" x="-289" y="161">
+			<name x="-331" y="187">BlockedNoRaw</name>
+		</location>
+		<location id="id37" x="59" y="8">
+			<name x="8" y="-25">TryToProduce</name>
+			<committed/>
+		</location>
+		<init ref="id34"/>
+		<transition id="id38">
+			<source ref="id37"/>
+			<target ref="id36"/>
+			<label kind="guard" x="-153" y="136">should_enter_production_block()</label>
+			<label kind="assignment" x="-153" y="153">open_production_block(id)</label>
+			<nail x="42" y="51"/>
+			<nail x="-229" y="170"/>
+		</transition>
+		<transition id="id39">
+			<source ref="id37"/>
+			<target ref="id35"/>
+			<label kind="guard" x="187" y="-68">can_start_production()</label>
+			<label kind="assignment" x="170" y="-51">close_production_block(id),
+close_latent_production_block(id),
+consume_materials_for_batch(),
+p = 0</label>
+		</transition>
+		<transition id="id40">
+			<source ref="id36"/>
+			<target ref="id37"/>
+			<label kind="synchronisation" x="-153" y="59">raw_delivered?</label>
+		</transition>
+		<transition id="id41">
+			<source ref="id35"/>
+			<target ref="id34"/>
+			<label kind="guard" x="-59" y="-280">p &gt;= PROD_MIN</label>
+			<label kind="synchronisation" x="-51" y="-263">production_done[id]!</label>
+			<label kind="assignment" x="-170" y="-238">finish_batch_with_quality(), production_request_pending[id] = false</label>
+			<nail x="331" y="-212"/>
+			<nail x="-212" y="-212"/>
+		</transition>
+		<transition id="id42">
+			<source ref="id34"/>
+			<target ref="id36"/>
+			<label kind="guard" x="-289" y="-17">should_enter_production_block()</label>
+			<label kind="synchronisation" x="-289" y="17">request_production[id]?</label>
+			<label kind="assignment" x="-289" y="0">open_production_block(id)</label>
+		</transition>
+		<transition id="id43">
+			<source ref="id34"/>
+			<target ref="id35"/>
+			<label kind="guard" x="-76" y="-153">can_start_production()</label>
+			<label kind="synchronisation" x="-76" y="-136">request_production[id]?</label>
+			<label kind="assignment" x="-76" y="-119">close_production_block(id),
+close_latent_production_block(id),
+consume_materials_for_batch(),
+p = 0</label>
+		</transition>
+	</template>
+	<template>
+		<name>IndustryController</name>
+		<location id="id44" x="-697" y="-263">
+			<name x="-707" y="-297">Monitor</name>
+		</location>
+		<location id="id45" x="-34" y="-255">
+			<name x="-44" y="-289">CheckDone</name>
+			<committed/>
+		</location>
+		<location id="id46" x="-697" y="59">
+			<name x="-748" y="76">CheckRaw</name>
+			<committed/>
+		</location>
+		<location id="id47" x="-42" y="59">
+			<name x="-17" y="68">CheckProduction</name>
+			<committed/>
+		</location>
+		<init ref="id45"/>
+		<transition id="id48">
+			<source ref="id47"/>
+			<target ref="id46"/>
+			<label kind="select" x="-629" y="323">i : prod_id</label>
+			<label kind="guard" x="-629" y="357">done_stock &lt; safe_done + PROD_BATCH
+&amp;&amp; !has_all_materials_for_batch()
+&amp;&amp; production_line_enabled(i)
+&amp;&amp; !production_request_pending[i]
+&amp;&amp; TRACK_PRODUCTION_BLOCKING_KPI</label>
+			<label kind="synchronisation" x="-629" y="340">request_production[i]!</label>
+			<label kind="assignment" x="-629" y="450">open_latent_production_block(i),
+production_request_pending[i] = true</label>
+			<nail x="-102" y="323"/>
+			<nail x="-646" y="314"/>
+		</transition>
+		<transition id="id49">
+			<source ref="id47"/>
+			<target ref="id46"/>
+			<label kind="select" x="-620" y="85">i : prod_id</label>
+			<label kind="guard" x="-620" y="102">done_stock &lt; safe_done + PROD_BATCH
+&amp;&amp; !has_all_materials_for_batch()
+&amp;&amp; production_line_enabled(i)
+&amp;&amp; !production_request_pending[i]
+&amp;&amp; !TRACK_PRODUCTION_BLOCKING_KPI</label>
+			<label kind="assignment" x="-510" y="85">open_latent_production_block(i)</label>
+			<nail x="-93" y="85"/>
+			<nail x="-637" y="85"/>
+		</transition>
+		<transition id="id50">
+			<source ref="id44"/>
+			<target ref="id45"/>
+			<label kind="select" x="-679" y="-373">c : cust_id</label>
+			<label kind="guard" x="-679" y="-356">(inventory_stock[cust_store(c)] + incoming_inventory[cust_store(c)]) &lt; safe_inventory[cust_store(c)]</label>
+			<label kind="synchronisation" x="-679" y="-339">customer_ordered[c]?</label>
+			<label kind="assignment" x="-679" y="-322">register_store_request(cust_store(c))</label>
+			<nail x="-612" y="-382"/>
+			<nail x="-314" y="-382"/>
+			<nail x="-110" y="-382"/>
+		</transition>
+		<transition id="id51">
+			<source ref="id45"/>
+			<target ref="id47"/>
+			<label kind="select" x="51" y="-136">t : truck2_id</label>
+			<label kind="guard" x="51" y="-93">truck2_enabled(t) &amp;&amp; !truck2_busy[t] &amp;&amp; can_ship_oldest_store()</label>
+			<label kind="synchronisation" x="59" y="-110">request_finished_ship[t]!</label>
+			<label kind="assignment" x="59" y="-17">dispatch_oldest_store_request(t)</label>
+			<nail x="42" y="-153"/>
+			<nail x="42" y="-8"/>
+		</transition>
+		<transition id="id52">
+			<source ref="id46"/>
+			<target ref="id44"/>
+			<label kind="select" x="-892" y="-229">t : truck1_id</label>
+			<label kind="guard" x="-901" y="-204">exists_bundle_replenishment() &amp;&amp; !truck1_busy[t]</label>
+			<label kind="synchronisation" x="-926" y="-136">request_raw_material[t]!</label>
+			<label kind="assignment" x="-909" y="-110">reserve_raw_bundle()</label>
+			<nail x="-748" y="8"/>
+			<nail x="-748" y="-229"/>
+		</transition>
+		<transition id="id53">
+			<source ref="id44"/>
+			<target ref="id45"/>
+			<label kind="select" x="-391" y="-374">i : prod_id</label>
+			<label kind="synchronisation" x="-390" y="-348">production_done[i]?</label>
+			<nail x="-408" y="-331"/>
+			<nail x="-102" y="-331"/>
+		</transition>
+		<transition id="id54">
+			<source ref="id44"/>
+			<target ref="id45"/>
+			<label kind="select" x="-391" y="-331">t : truck2_id</label>
+			<label kind="synchronisation" x="-381" y="-314">finished_delivered[t]?</label>
+			<nail x="-399" y="-297"/>
+			<nail x="-110" y="-297"/>
+		</transition>
+		<transition id="id55">
+			<source ref="id44"/>
+			<target ref="id45"/>
+			<label kind="synchronisation" x="-364" y="-297">raw_delivered?</label>
+			<nail x="-382" y="-280"/>
+			<nail x="-127" y="-280"/>
+		</transition>
+		<transition id="id56">
+			<source ref="id46"/>
+			<target ref="id44"/>
+			<label kind="guard" x="-731" y="-119">!exists_bundle_replenishment() || (forall(t:truck1_id) truck1_busy[t])</label>
+		</transition>
+		<transition id="id57">
+			<source ref="id47"/>
+			<target ref="id46"/>
+			<label kind="guard" x="-629" y="229">done_stock &gt;= safe_done + PROD_BATCH 
+|| !exists_available_enabled_production_line()</label>
+			<nail x="-136" y="229"/>
+			<nail x="-629" y="229"/>
+		</transition>
+		<transition id="id58">
+			<source ref="id47"/>
+			<target ref="id46"/>
+			<label kind="select" x="-680" y="-34">i : prod_id</label>
+			<label kind="guard" x="-340" y="-8">done_stock &lt; safe_done + PROD_BATCH
+&amp;&amp; can_start_production()
+&amp;&amp; production_line_enabled(i)
+&amp;&amp; !production_request_pending[i]</label>
+			<label kind="synchronisation" x="-680" y="-17">request_production[i]!</label>
+			<label kind="assignment" x="-680" y="0">close_latent_production_block(i),
+production_request_pending[i] = true,
+total_extra_production_line_activations += (i &gt; 0 &amp;&amp; surge_capacity_active()) ? 1 : 0</label>
+			<nail x="-331" y="59"/>
+			<nail x="-671" y="59"/>
+		</transition>
+		<transition id="id59">
+			<source ref="id45"/>
+			<target ref="id47"/>
+			<label kind="guard" x="-127" y="-229">!exists_store_waiting() ||
+done_stock &lt; SHIP_BATCH ||
+!exists_available_enabled_truck2() ||
+!can_ship_oldest_store()</label>
+		</transition>
+		<transition id="id60">
+			<source ref="id44"/>
+			<target ref="id45"/>
+			<label kind="select" x="-679" y="-310">s : store_id</label>
+			<label kind="synchronisation" x="-407" y="-263">notify_inventory_low[s]?</label>
+		</transition>
+	</template>
+	<template>
+		<name>Store</name>
+		<parameter>store_id sid</parameter>
+		<declaration>cust_id active_cust;</declaration>
+		<location id="id61" x="-229" y="-119">
+			<name x="-263" y="-153">Waiting</name>
+			<label kind="exponentialrate" x="-239" y="-85">1</label>
+		</location>
+		<location id="id62" x="127" y="-119">
+			<name x="117" y="-153">CheckOrder</name>
+			<committed/>
+		</location>
+		<location id="id63" x="-221" y="178">
+			<name x="-238" y="195">Serve</name>
+			<committed/>
+		</location>
+		<location id="id64" x="127" y="178">
+			<name x="76" y="195">PendingFulfillment</name>
+			<label kind="exponentialrate" x="117" y="212">1</label>
+		</location>
+		<init ref="id61"/>
+		<transition id="id65">
+			<source ref="id62"/>
+			<target ref="id64"/>
+			<label kind="guard" x="153" y="-59">inventory_stock[sid] &lt; order_qty[active_cust]</label>
+			<nail x="161" y="-85"/>
+			<nail x="161" y="110"/>
+		</transition>
+		<transition id="id66">
+			<source ref="id64"/>
+			<target ref="id62"/>
+			<label kind="guard" x="-8" y="85">inventory_stock[sid] &gt;= order_qty[active_cust]</label>
+		</transition>
+		<transition id="id67">
+			<source ref="id63"/>
+			<target ref="id61"/>
+			<label kind="guard" x="-518" y="0">inventory_stock[sid] &lt; safe_inventory[sid]</label>
+			<label kind="synchronisation" x="-519" y="13">notify_inventory_low[sid]!</label>
+			<label kind="assignment" x="-518" y="34">register_store_request(sid)</label>
+			<nail x="-280" y="136"/>
+			<nail x="-280" y="-76"/>
+		</transition>
+		<transition id="id68">
+			<source ref="id63"/>
+			<target ref="id61"/>
+			<label kind="guard" x="-255" y="-59">inventory_stock[sid] &gt;= safe_inventory[sid]</label>
+		</transition>
+		<transition id="id69">
+			<source ref="id61"/>
+			<target ref="id62"/>
+			<label kind="guard" x="-212" y="-187">exists_waiting_for_store(sid)</label>
+			<label kind="assignment" x="-178" y="-153">active_cust = get_next_customer_for_store(sid),
+customer_waiting[active_cust] = false,
+order_sequence = (forall (j : cust_id) !customer_waiting[j]) ? 0 : order_sequence</label>
+		</transition>
+		<transition id="id70">
+			<source ref="id62"/>
+			<target ref="id63"/>
+			<label kind="guard" x="-127" y="-9">inventory_stock[sid] &gt;= order_qty[active_cust]</label>
+			<label kind="synchronisation" x="-127" y="8">customer_served[active_cust]!</label>
+			<label kind="assignment" x="-127" y="25">update_stock_and_track(sid, order_qty[active_cust])</label>
+		</transition>
+	</template>
+	<template>
+		<name>SurgeStoreServer</name>
+		<parameter>store_id sid</parameter>
+		<declaration>cust_id active_cust;</declaration>
+		<location id="id71" x="-229" y="-119">
+			<name x="-263" y="-153">Waiting</name>
+			<label kind="exponentialrate" x="-239" y="-85">1</label>
+		</location>
+		<location id="id72" x="127" y="-119">
+			<name x="117" y="-153">CheckOrder</name>
+			<committed/>
+		</location>
+		<location id="id73" x="-221" y="178">
+			<name x="-238" y="195">Serve</name>
+			<committed/>
+		</location>
+		<location id="id74" x="127" y="178">
+			<name x="76" y="195">PendingFulfillment</name>
+			<label kind="exponentialrate" x="117" y="212">1</label>
+		</location>
+		<init ref="id71"/>
+		<transition id="id75">
+			<source ref="id72"/>
+			<target ref="id74"/>
+			<label kind="guard" x="153" y="-59">inventory_stock[sid] &lt; order_qty[active_cust]</label>
+			<nail x="161" y="-85"/>
+			<nail x="161" y="110"/>
+		</transition>
+		<transition id="id76">
+			<source ref="id74"/>
+			<target ref="id72"/>
+			<label kind="guard" x="-8" y="85">inventory_stock[sid] &gt;= order_qty[active_cust]</label>
+		</transition>
+		<transition id="id77">
+			<source ref="id73"/>
+			<target ref="id71"/>
+			<label kind="guard" x="-518" y="0">inventory_stock[sid] &lt; safe_inventory[sid]</label>
+			<label kind="synchronisation" x="-519" y="13">notify_inventory_low[sid]!</label>
+			<label kind="assignment" x="-518" y="34">register_store_request(sid)</label>
+			<nail x="-280" y="136"/>
+			<nail x="-280" y="-76"/>
+		</transition>
+		<transition id="id78">
+			<source ref="id73"/>
+			<target ref="id71"/>
+			<label kind="guard" x="-255" y="-59">inventory_stock[sid] &gt;= safe_inventory[sid]</label>
+		</transition>
+		<transition id="id79">
+			<source ref="id71"/>
+			<target ref="id72"/>
+			<label kind="guard" x="-212" y="-187">surge_capacity_active()
+&amp;&amp; exists_waiting_for_store(sid)</label>
+			<label kind="assignment" x="-178" y="-153">active_cust = get_next_customer_for_store(sid),
+customer_waiting[active_cust] = false,
+order_sequence = (forall (j : cust_id) !customer_waiting[j]) ? 0 : order_sequence</label>
+		</transition>
+		<transition id="id80">
+			<source ref="id72"/>
+			<target ref="id73"/>
+			<label kind="guard" x="-127" y="-9">inventory_stock[sid] &gt;= order_qty[active_cust]</label>
+			<label kind="synchronisation" x="-127" y="8">customer_served[active_cust]!</label>
+			<label kind="assignment" x="-127" y="25">update_stock_and_track(sid, order_qty[active_cust]),
+total_store_parallel_service_activations++</label>
+		</transition>
+	</template>
+	<template>
+		<name x="5" y="5">Customer</name>
+		<parameter>cust_id id</parameter>
+		<declaration>// Place local declarations here.
+clock c;
+clock w;</declaration>
+		<location id="id81" x="-306" y="59">
+			<name x="-272" y="68">waiting</name>
+			<label kind="invariant" x="-289" y="51">c &lt;= order_delay[id]</label>
+		</location>
+		<location id="id82" x="119" y="76">
+			<name x="86" y="93">Received</name>
+			<committed/>
+		</location>
+		<location id="id83" x="-93" y="-153">
+			<name x="-103" y="-187">Requesting</name>
+		</location>
+		<location id="id84" x="-34" y="459">
+			<name x="-68" y="476">SetDelay</name>
+			<committed/>
+		</location>
+		<init ref="id82"/>
+		<transition id="id85">
+			<source ref="id84"/>
+			<target ref="id81"/>
+			<label kind="guard" x="-459" y="467">first_order_done[id]</label>
+			<label kind="assignment" x="-671" y="493">order_delay[id] =
+    ORDER_MIN + fint(random_gamma(ORDER_G_SHAPE, ORDER_G_SCALE))</label>
+			<nail x="-280" y="484"/>
+			<nail x="-433" y="221"/>
+		</transition>
+		<transition id="id86">
+			<source ref="id84"/>
+			<target ref="id81"/>
+			<label kind="guard" x="-255" y="297">!first_order_done[id]</label>
+			<label kind="assignment" x="-340" y="323">order_delay[id] =
+    FIRST_ORDER_BASE
+    + FIRST_ORDER_GAP * rank_in_store(id)
+    + fint(random_gamma(FIRST_JIT_SHAPE, FIRST_JIT_SCALE))</label>
+		</transition>
+		<transition id="id87">
+			<source ref="id82"/>
+			<target ref="id84"/>
+			<label kind="assignment" x="51" y="229">c = 0,
+wait_start_tick[id] = sim_time,
+wait_obs[id] = 0</label>
+		</transition>
+		<transition id="id88">
+			<source ref="id83"/>
+			<target ref="id82"/>
+			<label kind="synchronisation" x="58" y="-89">customer_served[id]?</label>
+			<label kind="assignment" x="8" y="-76">total_sold++,
+total_sold_store[cust_store(id)]++,
+orders_received[id]++,
+total_lead_time += sim_time - order_time_tick[id]</label>
+		</transition>
+		<transition id="id89">
+			<source ref="id81"/>
+			<target ref="id83"/>
+			<label kind="guard" x="-790" y="-153">c &gt;= apply_demand_shock(order_delay[id])</label>
+			<label kind="synchronisation" x="-790" y="-136">customer_ordered[id]!</label>
+			<label kind="assignment" x="-790" y="-119">w = 0,
+orders_made[id]++,
+request_time[id] = ++order_sequence,
+customer_waiting[id] = true,
+order_qty[id] = current_order_qty_sample(),
+total_ordered++,
+total_ordered_store[cust_store(id)]++,
+order_time_tick[id] = sim_time,
+first_wait_value[id] = sim_time - wait_start_tick[id],
+first_wait_done[id] = true,
+first_order_done[id] = true,
+shock_orders_made += (ENABLE_D_DEMAND_SHOCK &amp;&amp; demand_shock_active) ? 1 : 0</label>
+		</transition>
+	</template>
+	<system>
+
+system Customer, Store, IndustryController, ProductionUnit, Transport1, Transport2, TimeTicker, DemandShock, QualityShock, RawMaterialShortage, SurgeStoreServer,FinishedGoodsTransportDelay;</system>
+	<queries>
+		<option key="--search-order" value="1"/>
+		<option key="--diagnostic" value="-1"/>
+		<query>
+			<formula>Pr[&lt;=800] (&lt;&gt; sim_time &gt;= 800 &amp;&amp; service_ratio_pct() &gt;= 95)</formula>
+			<comment>[DK:DS][DK:QS][GK:RES][KPI][DIR:higher] Service ratio at least 95%</comment>
+		</query>
+		<query>
+			<formula>E[&lt;=800;50] (max: avg_lead_time())</formula>
+			<comment>[DK:DS][DK:FTD][GK:RES][KPI][DIR:lower] Average customer lead time</comment>
+		</query>
+		<query>
+			<formula>E[&lt;=800;50] (max: max_safe_stock_recovery_time_live_all())</formula>
+			<comment>[DK:RS][KPI][DIR:lower] Raw shortage - safe stock recovery time</comment>
+		</query>
+		<query>
+			<formula>E[&lt;=800;50] (max: max_latent_production_blocked_time_live_all())</formula>
+			<comment>[DK:RS][KPI][DIR:lower] Raw shortage - latent production blocked time</comment>
+		</query>
+		<query>
+			<formula>E[&lt;=800;50] (max: max_production_blocked_time_live_all())</formula>
+			<comment>[DK:RS][GK:RES][KPI][DIR:lower] Raw shortage / general resilience - active production blocked time</comment>
+		</query>
+		<query>
+			<formula>E[&lt;=800;50] (max: defect_rate_pct())</formula>
+			<comment>[DK:QS][KPI][DIR:lower] Quality shock - defect rate</comment>
+		</query>
+		<query>
+			<formula>E[&lt;=800;50] (max: max_stockout_duration_live_all())</formula>
+			<comment>[DK:FTD][GK:RES][KPI][DIR:lower] Finished transport delay / general resilience - stockout duration</comment>
+		</query>
+		<query>
+			<formula>E[&lt;=800;50] (max: total_emergency_raw_replenishments)</formula>
+			<comment>[PK:ERR][ACT] Activation - emergency raw replenishment</comment>
+		</query>
+		<query>
+			<formula>E[&lt;=800;50] (max: total_adaptive_raw_safety_replenishments)</formula>
+			<comment>[PK:ARSS][ACT] Activation - adaptive raw safety stock</comment>
+		</query>
+		<query>
+			<formula>E[&lt;=800;50] (max: surge_capacity_activation_count())</formula>
+			<comment>[PK:DSC][ACT] Activation - demand surge capacity</comment>
+		</query>
+		<query>
+			<formula>E[&lt;=800;50] (max: total_backup_finished_goods_truck_activations)</formula>
+			<comment>[PK:BFGT][ACT] Activation - backup finished-goods truck</comment>
+		</query>
+		<query>
+			<formula>E[&lt;=800;50] (min: min_availability_pct_all())</formula>
+			<comment>[GK:RES][KPI][DIR:higher] General resilience - minimum availability</comment>
+		</query>
+		<query>
+			<formula>E[&lt;=800;50] (max: total_demand_shocks)</formula>
+			<comment>[CTX:DS] Demand shock - occurrence count</comment>
+		</query>
+		<query>
+			<formula>E[&lt;=800;50] (max: total_raw_shortage_events)</formula>
+			<comment>[CTX:RS] Raw shortage - occurrence count	</comment>
+		</query>
+		<query>
+			<formula>E[&lt;=800;50] (max: total_shock_events)</formula>
+			<comment>[CTX:QS] Quality shock - occurrence count</comment>
+		</query>
+		<query>
+			<formula>E[&lt;=800;50] (max: total_finished_transport_delay_windows)</formula>
+			<comment>[CTX:FTD] Finished transport delay - delay window count</comment>
+		</query>
+		<query>
+			<formula>E[&lt;=800;50] (max: total_finished_transport_delayed_trips)</formula>
+			<comment>[CTX:FTD] Finished transport delay - delayed trip count</comment>
+		</query>
+	</queries>
+</nta>

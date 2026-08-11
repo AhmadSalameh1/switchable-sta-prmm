@@ -1,0 +1,48 @@
+cff-version: 1.2.0
+message: "If you use this software, model, or data, please cite it as below."
+title: "Switchable STA Supply Chain Resilience Model and PRMM Evidence-Binding Toolchain"
+type: software
+authors:
+  - family-names: Salameh
+    given-names: Ahmad
+    affiliation: "SYMME Laboratory, Université Savoie Mont Blanc"
+repository-code: "[add GitHub URL here once repository is created]"
+version: "11.4.1"
+date-released: "[add release date]"
+license: "MIT"
+license-url: "https://opensource.org/license/mit/"
+# Note: model and result data under CC-BY-4.0 (see LICENSE-DATA.md); code under MIT.
+keywords:
+  - supply chain resilience
+  - stochastic timed automata
+  - UPPAAL SMC
+  - statistical model checking
+  - process resilience maturity model
+references:
+  - type: article
+    authors:
+      - family-names: Maire
+        given-names: Jean-Luc
+      - family-names: Himmiche
+        given-names: Sara
+      - family-names: Jimenez
+        given-names: Jose-Fernando
+    title: "AI-Driven Process Resilience Maturity Model: Incorporating ChatGPT in Supply Chain Management"
+    year: 2026
+  - type: article
+    authors:
+      - family-names: Tritscher
+        given-names: Julian
+      - family-names: Gwinner
+        given-names: Fabian
+      - family-names: Schlör
+        given-names: Daniel
+      - family-names: Krause
+        given-names: Anna
+      - family-names: Hotho
+        given-names: Andreas
+    title: "Open ERP System Data For Occupational Fraud Detection"
+    year: 2022
+    identifiers:
+      - type: other
+        value: "arXiv:2206.04460"

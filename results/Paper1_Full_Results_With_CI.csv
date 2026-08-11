@@ -1,0 +1,188 @@
+scenario,query_idx,query_name,value,ci_low,ci_high,margin,runs,kind
+Baseline,1,Service ratio >=95%,0.7864077669902912,0.736447,0.830783,0.04716800000000004,309,probability
+Baseline,2,Avg customer lead time,10.0,10.0,10.0,0.0,50,estimate_zero_variance
+Baseline,3,Safe stock recovery time,148.04,127.118,168.962,20.922,50,estimate
+Baseline,4,Latent production blocked time,611.88,600.7145,623.0455,11.1655,50,estimate
+Baseline,5,Active production blocked time,605.06,590.8122999999999,619.3077,14.2477,50,estimate
+Baseline,6,Defect rate,1.66,1.412309,1.9076909999999998,0.247691,50,estimate
+Baseline,7,Stockout duration,35.9,30.192549999999997,41.60745,5.70745,50,estimate
+Baseline,8,Activation: emergency raw replenishment,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+Baseline,9,Activation: adaptive raw safety stock,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+Baseline,10,Activation: demand surge capacity,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+Baseline,11,Activation: backup finished-goods truck,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+Baseline,12,Minimum availability,95.24,94.360647,96.11935299999999,0.879353,50,estimate
+Baseline,13,Demand shock occurrence count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+Baseline,14,Raw shortage occurrence count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+Baseline,15,Quality shock occurrence count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+Baseline,16,Transport delay window count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+Baseline,17,Transport delayed trip count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+R,1,Service ratio >=95%,0.7784810126582279,0.728607,0.823049,0.04722100000000001,316,probability
+R,2,Avg customer lead time,10.68,10.546083,10.813917,0.133917,50,estimate
+R,3,Safe stock recovery time,214.62,192.7722,236.4678,21.8478,50,estimate
+R,4,Latent production blocked time,611.02,601.69226,620.3477399999999,9.32774,50,estimate
+R,5,Active production blocked time,617.6,608.61126,626.58874,8.98874,50,estimate
+R,6,Defect rate,1.72,1.4384839999999999,2.001516,0.281516,50,estimate
+R,7,Stockout duration,55.92,50.89718,60.942820000000005,5.02282,50,estimate
+R,8,Activation: emergency raw replenishment,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+R,9,Activation: adaptive raw safety stock,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+R,10,Activation: demand surge capacity,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+R,11,Activation: backup finished-goods truck,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+R,12,Minimum availability,93.18,92.37067300000001,93.989327,0.809327,50,estimate
+R,13,Demand shock occurrence count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+R,14,Raw shortage occurrence count,2.0,2.0,2.0,0.0,50,estimate_zero_variance
+R,15,Quality shock occurrence count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+R,16,Transport delay window count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+R,17,Transport delayed trip count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+D,1,Service ratio >=95%,0.8455598455598455,0.795689,0.887316,0.04581350000000001,259,probability
+D,2,Avg customer lead time,10.24,10.117392,10.362608,0.122608,50,estimate
+D,3,Safe stock recovery time,190.22,165.0382,215.4018,25.1818,50,estimate
+D,4,Latent production blocked time,614.76,603.4823,626.0377,11.2777,50,estimate
+D,5,Active production blocked time,621.84,611.9939,631.6861,9.8461,50,estimate
+D,6,Defect rate,1.66,1.4190559999999999,1.900944,0.240944,50,estimate
+D,7,Stockout duration,46.68,40.2824,53.0776,6.3976,50,estimate
+D,8,Activation: emergency raw replenishment,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+D,9,Activation: adaptive raw safety stock,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+D,10,Activation: demand surge capacity,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+D,11,Activation: backup finished-goods truck,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+D,12,Minimum availability,94.2,93.416944,94.983056,0.783056,50,estimate
+D,13,Demand shock occurrence count,1.06,0.9918218000000001,1.1281782,0.0681782,50,estimate
+D,14,Raw shortage occurrence count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+D,15,Quality shock occurrence count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+D,16,Transport delay window count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+D,17,Transport delayed trip count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+Q,1,Service ratio >=95%,0.8061224489795918,0.75623,0.849725,0.0467475,294,probability
+Q,2,Avg customer lead time,10.02,9.979808499999999,10.0601915,0.0401915,50,estimate
+Q,3,Safe stock recovery time,158.42,140.7354,176.10459999999998,17.6846,50,estimate
+Q,4,Latent production blocked time,609.9,599.6972999999999,620.1027,10.2027,50,estimate
+Q,5,Active production blocked time,617.34,605.6849000000001,628.9951,11.6551,50,estimate
+Q,6,Defect rate,1.84,1.607765,2.072235,0.232235,50,estimate
+Q,7,Stockout duration,43.98,39.059079999999994,48.90092,4.92092,50,estimate
+Q,8,Activation: emergency raw replenishment,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+Q,9,Activation: adaptive raw safety stock,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+Q,10,Activation: demand surge capacity,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+Q,11,Activation: backup finished-goods truck,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+Q,12,Minimum availability,95.28,94.484332,96.07566800000001,0.795668,50,estimate
+Q,13,Demand shock occurrence count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+Q,14,Raw shortage occurrence count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+Q,15,Quality shock occurrence count,1.0,1.0,1.0,0.0,50,estimate_zero_variance
+Q,16,Transport delay window count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+Q,17,Transport delayed trip count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+F,1,Service ratio >=95%,0.7598784194528876,0.709977,0.805032,0.0475275,329,probability
+F,2,Avg customer lead time,10.06,9.9918218,10.1281782,0.0681782,50,estimate
+F,3,Safe stock recovery time,142.54,126.84259999999999,158.23739999999998,15.6974,50,estimate
+F,4,Latent production blocked time,589.24,578.8788,599.6012000000001,10.3612,50,estimate
+F,5,Active production blocked time,594.18,582.2041999999999,606.1558,11.9758,50,estimate
+F,6,Defect rate,1.78,1.4970240000000001,2.062976,0.282976,50,estimate
+F,7,Stockout duration,42.24,36.680220000000006,47.79978,5.55978,50,estimate
+F,8,Activation: emergency raw replenishment,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+F,9,Activation: adaptive raw safety stock,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+F,10,Activation: demand surge capacity,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+F,11,Activation: backup finished-goods truck,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+F,12,Minimum availability,95.0,94.340335,95.659665,0.659665,50,estimate
+F,13,Demand shock occurrence count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+F,14,Raw shortage occurrence count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+F,15,Quality shock occurrence count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+F,16,Transport delay window count,3.02,2.9798085,3.0601915,0.0401915,50,estimate
+F,17,Transport delayed trip count,34.76,29.687959999999997,39.83204,5.07204,50,estimate
+R + E,1,Service ratio >=95%,0.7552870090634441,0.705295,0.800645,0.04767500000000002,331,probability
+R + E,2,Avg customer lead time,9.54,9.365753,9.714246999999999,0.174247,50,estimate
+R + E,3,Safe stock recovery time,8.66,8.209327,9.110673,0.450673,50,estimate
+R + E,4,Latent production blocked time,17.52,15.94629,19.093709999999998,1.57371,50,estimate
+R + E,5,Active production blocked time,16.96,15.44312,18.47688,1.51688,50,estimate
+R + E,6,Defect rate,1.62,1.377148,1.8628520000000002,0.242852,50,estimate
+R + E,7,Stockout duration,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+R + E,8,Activation: emergency raw replenishment,22.76,22.533514,22.986486000000003,0.226486,50,estimate
+R + E,9,Activation: adaptive raw safety stock,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+R + E,10,Activation: demand surge capacity,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+R + E,11,Activation: backup finished-goods truck,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+R + E,12,Minimum availability,100.0,100.0,100.0,0.0,50,estimate_zero_variance
+R + E,13,Demand shock occurrence count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+R + E,14,Raw shortage occurrence count,2.0,2.0,2.0,0.0,50,estimate_zero_variance
+R + E,15,Quality shock occurrence count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+R + E,16,Transport delay window count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+R + E,17,Transport delayed trip count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+F + B,1,Service ratio >=95%,0.7654320987654321,0.715437,0.810501,0.04753200000000002,324,probability
+F + B,2,Avg customer lead time,10.02,9.979808499999999,10.0601915,0.0401915,50,estimate
+F + B,3,Safe stock recovery time,142.58,126.97440000000002,158.18560000000002,15.6056,50,estimate
+F + B,4,Latent production blocked time,604.7,592.3441,617.0559000000001,12.3559,50,estimate
+F + B,5,Active production blocked time,606.06,593.9976999999999,618.1223,12.0623,50,estimate
+F + B,6,Defect rate,1.72,1.4384839999999999,2.001516,0.281516,50,estimate
+F + B,7,Stockout duration,39.6,34.18274,45.01726,5.41726,50,estimate
+F + B,8,Activation: emergency raw replenishment,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+F + B,9,Activation: adaptive raw safety stock,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+F + B,10,Activation: demand surge capacity,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+F + B,11,Activation: backup finished-goods truck,2.6,2.427751,2.772249,0.172249,50,estimate
+F + B,12,Minimum availability,94.86,94.113564,95.606436,0.746436,50,estimate
+F + B,13,Demand shock occurrence count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+F + B,14,Raw shortage occurrence count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+F + B,15,Quality shock occurrence count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+F + B,16,Transport delay window count,3.0,3.0,3.0,0.0,50,estimate_zero_variance
+F + B,17,Transport delayed trip count,43.16,34.763569999999994,51.55643,8.39643,50,estimate
+"D + E,S",1,Service ratio >=95%,0.7760252365930599,0.726082,0.820728,0.047323000000000004,317,probability
+"D + E,S",2,Avg customer lead time,8.56,8.283684000000001,8.836316,0.276316,50,estimate
+"D + E,S",3,Safe stock recovery time,12.22,7.300820000000001,17.13918,4.91918,50,estimate
+"D + E,S",4,Latent production blocked time,52.32,34.7686,69.8714,17.5514,50,estimate
+"D + E,S",5,Active production blocked time,37.52,27.571160000000003,47.46884,9.94884,50,estimate
+"D + E,S",6,Defect rate,1.86,1.590632,2.129368,0.269368,50,estimate
+"D + E,S",7,Stockout duration,0.76,-0.76728,2.28728,1.52728,50,estimate
+"D + E,S",8,Activation: emergency raw replenishment,24.74,23.940672999999997,25.539327,0.799327,50,estimate
+"D + E,S",9,Activation: adaptive raw safety stock,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+"D + E,S",10,Activation: demand surge capacity,125.14,87.0247,163.2553,38.1153,50,estimate
+"D + E,S",11,Activation: backup finished-goods truck,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+"D + E,S",12,Minimum availability,99.82,99.496781,100.14321899999999,0.323219,50,estimate
+"D + E,S",13,Demand shock occurrence count,1.12,1.0267093,1.2132907000000002,0.0932907,50,estimate
+"D + E,S",14,Raw shortage occurrence count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+"D + E,S",15,Quality shock occurrence count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+"D + E,S",16,Transport delay window count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+"D + E,S",17,Transport delayed trip count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+"R,Q + E",1,Service ratio >=95%,0.7701863354037267,0.720306,0.815019,0.047356500000000024,322,probability
+"R,Q + E",2,Avg customer lead time,9.68,9.534293,9.825707,0.145707,50,estimate
+"R,Q + E",3,Safe stock recovery time,8.88,8.440324,9.319676000000001,0.439676,50,estimate
+"R,Q + E",4,Latent production blocked time,18.16,16.38532,19.93468,1.77468,50,estimate
+"R,Q + E",5,Active production blocked time,17.78,16.106740000000002,19.45326,1.67326,50,estimate
+"R,Q + E",6,Defect rate,1.64,1.434902,1.845098,0.205098,50,estimate
+"R,Q + E",7,Stockout duration,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+"R,Q + E",8,Activation: emergency raw replenishment,23.0,22.756403,23.243597,0.243597,50,estimate
+"R,Q + E",9,Activation: adaptive raw safety stock,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+"R,Q + E",10,Activation: demand surge capacity,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+"R,Q + E",11,Activation: backup finished-goods truck,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+"R,Q + E",12,Minimum availability,100.0,100.0,100.0,0.0,50,estimate_zero_variance
+"R,Q + E",13,Demand shock occurrence count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+"R,Q + E",14,Raw shortage occurrence count,2.0,2.0,2.0,0.0,50,estimate_zero_variance
+"R,Q + E",15,Quality shock occurrence count,1.0,1.0,1.0,0.0,50,estimate_zero_variance
+"R,Q + E",16,Transport delay window count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+"R,Q + E",17,Transport delayed trip count,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+"R,D,Q,F",1,Service ratio >=95%,0.7477744807121661,0.697866,0.793269,0.04770150000000001,337,probability
+"R,D,Q,F",2,Avg customer lead time,11.06,10.953974,11.166026,0.106026,50,estimate
+"R,D,Q,F",3,Safe stock recovery time,216.58,194.2487,238.9113,22.3313,50,estimate
+"R,D,Q,F",4,Latent production blocked time,599.86,587.6172,612.1028,12.2428,50,estimate
+"R,D,Q,F",5,Active production blocked time,606.12,595.3597,616.8803,10.7603,50,estimate
+"R,D,Q,F",6,Defect rate,1.84,1.556616,2.123384,0.283384,50,estimate
+"R,D,Q,F",7,Stockout duration,71.54,65.82073000000001,77.25927,5.71927,50,estimate
+"R,D,Q,F",8,Activation: emergency raw replenishment,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+"R,D,Q,F",9,Activation: adaptive raw safety stock,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+"R,D,Q,F",10,Activation: demand surge capacity,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+"R,D,Q,F",11,Activation: backup finished-goods truck,0.0,0.0,0.0,0.0,50,estimate_zero_variance
+"R,D,Q,F",12,Minimum availability,91.78,90.89928,92.66072,0.88072,50,estimate
+"R,D,Q,F",13,Demand shock occurrence count,1.08,1.0021166000000001,1.1578834,0.0778834,50,estimate
+"R,D,Q,F",14,Raw shortage occurrence count,2.0,2.0,2.0,0.0,50,estimate_zero_variance
+"R,D,Q,F",15,Quality shock occurrence count,1.0,1.0,1.0,0.0,50,estimate_zero_variance
+"R,D,Q,F",16,Transport delay window count,3.0,3.0,3.0,0.0,50,estimate_zero_variance
+"R,D,Q,F",17,Transport delayed trip count,37.26,31.284599999999998,43.2354,5.9754,50,estimate
+"R,D,Q,F + E,A,S,B",1,Service ratio >=95%,0.7654320987654321,0.715437,0.810501,0.04753200000000002,324,probability
+"R,D,Q,F + E,A,S,B",2,Avg customer lead time,8.86,8.661021,9.058978999999999,0.198979,50,estimate
+"R,D,Q,F + E,A,S,B",3,Safe stock recovery time,39.88,33.36693,46.39307,6.51307,50,estimate
+"R,D,Q,F + E,A,S,B",4,Latent production blocked time,23.64,19.6842,27.5958,3.9558,50,estimate
+"R,D,Q,F + E,A,S,B",5,Active production blocked time,38.82,27.8431,49.7969,10.9769,50,estimate
+"R,D,Q,F + E,A,S,B",6,Defect rate,1.6,1.363266,1.836734,0.236734,50,estimate
+"R,D,Q,F + E,A,S,B",7,Stockout duration,4.52,2.3760999999999997,6.6639,2.1439,50,estimate
+"R,D,Q,F + E,A,S,B",8,Activation: emergency raw replenishment,12.98,11.84395,14.116050000000001,1.13605,50,estimate
+"R,D,Q,F + E,A,S,B",9,Activation: adaptive raw safety stock,44.24,43.519292,44.960708000000004,0.720708,50,estimate
+"R,D,Q,F + E,A,S,B",10,Activation: demand surge capacity,135.0,93.2565,176.74349999999998,41.7435,50,estimate
+"R,D,Q,F + E,A,S,B",11,Activation: backup finished-goods truck,2.78,2.6610769999999997,2.898923,0.118923,50,estimate
+"R,D,Q,F + E,A,S,B",12,Minimum availability,99.66,99.386985,99.933015,0.273015,50,estimate
+"R,D,Q,F + E,A,S,B",13,Demand shock occurrence count,1.02,0.9798085,1.0601915,0.0401915,50,estimate
+"R,D,Q,F + E,A,S,B",14,Raw shortage occurrence count,2.0,2.0,2.0,0.0,50,estimate_zero_variance
+"R,D,Q,F + E,A,S,B",15,Quality shock occurrence count,1.0,1.0,1.0,0.0,50,estimate_zero_variance
+"R,D,Q,F + E,A,S,B",16,Transport delay window count,3.0,3.0,3.0,0.0,50,estimate_zero_variance
+"R,D,Q,F + E,A,S,B",17,Transport delayed trip count,49.56,43.3635,55.7565,6.1965,50,estimate
