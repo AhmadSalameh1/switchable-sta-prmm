@@ -2,9 +2,9 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21893262.svg)](https://doi.org/10.5281/zenodo.21893262)
 
-Reproducibility artifact for: *[paper title/citation to be added on acceptance]*, Ahmad Salameh, SYMME Laboratory, Université Savoie Mont Blanc.
+Reproducibility artifact by Ahmad Salameh, SYMME Laboratory, Université Savoie Mont Blanc. The formal citation for the associated journal article will be added here once it is accepted; until then, cite this repository directly (see "Citing this repository" below).
 
-This repository accompanies the internship report "Modelling and Analysis of Supply Chain Resilience Using Stochastic Timed Automata" and the resulting journal article. It contains the UPPAAL model, the Python evaluation toolchain, and the full experimental results (point estimates, 95% confidence intervals, and raw `verifyta` traces) for all eleven scenario configurations.
+This repository accompanies the internship report "Modelling and Analysis of Supply Chain Resilience Using Stochastic Timed Automata" and the resulting journal article. It provides a switchable **Stochastic Timed Automata (STA)** model of supply chain resilience, analyzed through **Statistical Model Checking (SMC)** in UPPAAL, together with a Python toolchain that binds the resulting quantitative evidence to a **Process Resilience Maturity Model (PRMM)** score. Concretely, it contains the UPPAAL model, the Python evaluation toolchain, and the full experimental results (point estimates, 95% confidence intervals, and raw `verifyta` traces) for all eleven scenario configurations.
 
 ## Repository structure
 
@@ -32,13 +32,15 @@ results/
                                      Paper1_Full_Results_With_CI.csv was parsed from.
 
 docs/
-  (calibration notes, scenario design rationale -- see paper for full text)
+  calibration_and_scenario_design.md   Calibration methodology and the 11-scenario
+                                        design rationale (condensed; see the paper
+                                        for the full text).
 ```
 
 ## Requirements
 
-- UPPAAL 5.x with `verifyta` on PATH (or pass `--verifyta /path/to/verifyta`).
-- Python 3.9+, with `tkinter` and `Pillow` for the GUI tools.
+- UPPAAL with SMC support and the `verifyta` command-line tool on PATH (or pass `--verifyta /path/to/verifyta`). *Exact UPPAAL version used for this deposit to be confirmed and pinned here.*
+- Python 3.9+, with `tkinter` and `Pillow` (`pip install pillow`) for the GUI tools.
 
 ## Reproducing the results
 
@@ -53,10 +55,42 @@ python toolchain/uppaal_query_runner.py \
 
 To reproduce a specific one of the 11 reported scenarios, edit the `ENABLE_D_*` /
 `ENABLE_P_*` boolean declarations in the model's global declarations block to match
-the scenario's active flags (see Table 6.1 / Table A.3 in the paper), then run the
-command above. The GUI tools (`uppaal_query_runner_gui_v3...py` / `_v6.py`) do this
-interactively via the Enable Switches panel and additionally run the PRMM maturity
-scoring pipeline.
+the scenario's active flags (see Table 6.1 / Table A.3 in the internship report,
+renumbered in the journal article), then run the command above.
+
+GUI tools (interactive Enable Switches panel + PRMM maturity scoring pipeline):
+
+```bash
+cd toolchain
+python uppaal_query_runner_gui_v6.py
+```
+
+Run these from *inside* the `toolchain/` directory (or add it to `PYTHONPATH`) --
+`uppaal_query_runner_gui_v6.py` imports `uppaal_query_runner_gui_v3_PRMM_dual_scoring.py`
+and `uppaal_query_runner.py` as sibling modules, so launching it from the repo root
+will raise `ModuleNotFoundError`.
+
+## Disruptions and practices
+
+The model implements four disruptions and four resilience practices, each controlled
+by its own `ENABLE_*` Boolean flag and referred to by a single letter in scenario
+names throughout this repository and the paper:
+
+| Letter | Full name | Flag |
+|---|---|---|
+| D | Demand Shock | `ENABLE_D_DEMAND_SHOCK` |
+| R | Raw Shortage | `ENABLE_D_RAW_SHORTAGE` |
+| Q | Quality Shock | `ENABLE_D_QUALITY_SHOCK` |
+| F | Finished (goods) Transport Delay | `ENABLE_D_FINISHED_TRANSPORT_DELAY` |
+| E | Emergency Raw Replenishment | `ENABLE_P_EMERGENCY_RAW_REPLENISHMENT` |
+| A | Adaptive Raw Safety Stock | `ENABLE_P_ADAPTIVE_RAW_SAFETY_STOCK` |
+| S | Demand Surge Capacity | `ENABLE_P_DEMAND_SURGE_CAPACITY` |
+| B | Backup Finished Goods Truck | `ENABLE_P_BACKUP_FINISHED_GOODS_TRUCK` |
+
+The first four (D, R, Q, F) are disruptions; the last four (E, A, S, B) are the
+resilience practices that mitigate them. A scenario name like `R + E` means
+Raw Shortage mitigated by Emergency Raw Replenishment; `R,D,Q,F + E,A,S,B`
+means all four disruptions active, met with the full four-practice portfolio.
 
 ## Scenario configurations (flags)
 
