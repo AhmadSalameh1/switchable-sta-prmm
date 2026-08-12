@@ -39,7 +39,7 @@ docs/
 
 ## Requirements
 
-- UPPAAL with SMC support and the `verifyta` command-line tool on PATH (or pass `--verifyta /path/to/verifyta`). *Exact UPPAAL version used for this deposit to be confirmed and pinned here.*
+- UPPAAL 5.0.0 (rev. 714BA9DB36F49691, June 2023) or compatible, with the `verifyta` command-line tool on PATH (or pass `--verifyta /path/to/verifyta`). Built with TIGA/Stratego support enabled.
 - Python 3.9+, with `tkinter` and `Pillow` (`pip install pillow`) for the GUI tools.
 
 ## Reproducing the results
