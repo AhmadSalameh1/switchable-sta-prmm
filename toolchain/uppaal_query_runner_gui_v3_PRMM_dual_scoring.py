@@ -246,24 +246,65 @@ def parse_probability(text: str) -> Optional[ParsedTrace]:
 
 def parse_estimate(text: str) -> Optional[ParsedTrace]:
     match = EST_RE.search(text)
-    if not match:
+    if match:
+        runs = match.group("runs")
+        value = match.group("value").strip()
+
+        # The err group is the +/- margin verifyta reports for estimate queries
+        # (e.g. "(50 runs) E(max) = 8.66 +/- 0.450673 (95% CI)"). Previously this
+        # was captured by the regex but discarded here, leaving ci_low/ci_high
+        # empty for every estimate-type query in exported CSVs even though the
+        # margin was always present in the raw trace text.
+        ci_low = ""
+        ci_high = ""
+        try:
+            value_f = float(value)
+            err_f = float(match.group("err"))
+            ci_low = f"{value_f - err_f:.6g}"
+            ci_high = f"{value_f + err_f:.6g}"
+        except (TypeError, ValueError):
+            pass
+
+        return ParsedTrace(
+            query_name="estimate query",
+            value=value,
+            runs=runs,
+            ci_low=ci_low,
+            ci_high=ci_high,
+        )
+
+    # verifyta reports deterministic / zero-variance estimate queries in a
+    # different format with no +/- margin at all, e.g.
+    # "(50 runs) E(min) = ~= 100" instead of "... = 100 +/- 0.45 (95% CI)".
+    # EST_RE requires the +/- margin and never matches these lines, so
+    # parse_estimate() used to return None here and fall through to
+    # parse_trace()'s generic fallback, which hardcodes value='0' -- silently
+    # wrong whenever the true deterministic value was non-zero (observed:
+    # "E(min) = ~= 100" was being recorded as 0 in the exported CSV).
+    # EST_APPROX_RE already exists and is used correctly for this same case
+    # by the PRMM scoring engine (_extract_numeric_value_from_text); this
+    # applies the same fallback to the CSV-export path.
+    approx_match = EST_APPROX_RE.search(text)
+    if not approx_match:
         return None
 
-    runs = match.group("runs")
-    value = match.group("value").strip()
+    runs = approx_match.group("runs") or ""
+    value = approx_match.group("value").strip()
 
-    # The err group is the +/- margin verifyta reports for estimate queries
-    # (e.g. "(50 runs) E(max) = 8.66 +/- 0.450673 (95% CI)"). Previously this
-    # was captured by the regex but discarded here, leaving ci_low/ci_high
-    # empty for every estimate-type query in exported CSVs even though the
-    # margin was always present in the raw trace text.
     ci_low = ""
     ci_high = ""
+    err_group = approx_match.group("err")
     try:
         value_f = float(value)
-        err_f = float(match.group("err"))
-        ci_low = f"{value_f - err_f:.6g}"
-        ci_high = f"{value_f + err_f:.6g}"
+        if err_group is not None:
+            err_f = float(err_group)
+            ci_low = f"{value_f - err_f:.6g}"
+            ci_high = f"{value_f + err_f:.6g}"
+        else:
+            # No +/- margin means verifyta observed zero variance across all
+            # runs: the value itself is the exact, deterministic result.
+            ci_low = f"{value_f:.6g}"
+            ci_high = f"{value_f:.6g}"
     except (TypeError, ValueError):
         pass
 
