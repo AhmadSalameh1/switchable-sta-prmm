@@ -163,12 +163,13 @@ def run_verifyta_for_queries(model_path, queries, verifyta_path='verifyta', trac
 
     with tempfile.TemporaryDirectory(prefix='uppaal_queries_') as tmpdir:
         for i, query in enumerate(queries, start=1):
-            # Wait 20 seconds before each query (except the first one)
+            # Wait 10 seconds before each query (except the first one) -- reduced from 20s
+            # (originally set conservatively for RAM safety between verifyta subprocess runs).
             if i > 1:
-                log(f'Waiting 20 seconds before query {i}/{len(queries)}...')
-                for s in range(20):
+                log(f'Waiting 10 seconds before query {i}/{len(queries)}...')
+                for s in range(10):
                     if s % 5 == 0 and s > 0:
-                        log(f'  {20 - s}s remaining...')
+                        log(f'  {10 - s}s remaining...')
                     time.sleep(1)
             
             query_path = os.path.join(tmpdir, f'query_{i}.q')

@@ -759,6 +759,19 @@ class App(AppV3):
             self._refresh_enabled_and_detected_disruptions()
             self._rename_prmm_controls()
 
+    def _prmm_reports_dir(self, model_path):
+        """Resolve where PRMM evaluation reports/comparison records should be
+        written: <repo>/results/prmm_reports/ when the model sits inside the
+        expected repo layout (model_dir/../results), falling back to the
+        model's own folder otherwise."""
+        model_dir = Path(model_path).parent
+        project_root = model_dir.parent
+        prmm_dir = project_root / 'results' / 'prmm_reports'
+        if (project_root / 'results').is_dir() or model_dir.name.lower() == 'model':
+            prmm_dir.mkdir(parents=True, exist_ok=True)
+            return prmm_dir
+        return model_dir
+
     def make_prmm_report_filename(self, output_dir):
         """Build a timestamped V5 PRMM report filename with seconds and avoid overwrites."""
         timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
@@ -2091,11 +2104,12 @@ class App(AppV3):
                     'auto_mapping_summary': self.prmm_auto_mapping_summary,
                 }
                 report_text = self._build_prmm_v4_report(self.last_prmm_maturity_data)
-                report_path = self.make_prmm_report_filename(Path(model).parent)
+                prmm_output_dir = self._prmm_reports_dir(model)
+                report_path = self.make_prmm_report_filename(prmm_output_dir)
                 report_path.write_text(report_text, encoding='utf-8')
                 self.last_prmm_maturity_report_path = str(report_path)
 
-                comparison_path = self.make_prmm_comparison_filename(Path(model).parent)
+                comparison_path = self.make_prmm_comparison_filename(prmm_output_dir)
                 self._write_prmm_comparison_records(comparison_path, self.last_prmm_maturity_data)
                 self.last_prmm_comparison_path = str(comparison_path)
 

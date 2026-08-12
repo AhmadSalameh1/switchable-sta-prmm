@@ -55,11 +55,58 @@ EST_APPROX_RE = re.compile(
 
 MEAN_RE = re.compile(r"mean\s*=\s*(?P<value>[-+0-9.eE]+)", re.IGNORECASE)
 
+SEED_RE = re.compile(r"Seed is (?P<seed>\d+)", re.IGNORECASE)
+
 ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
 
 ENABLE_CONST_RE = re.compile(
     r"^\s*const\s+bool\s+(?P<name>ENABLE_[A-Za-z0-9_]+)\s*=\s*(?P<value>true|false)\s*;.*$"
 )
+
+# Single-letter codes matching the paper's scenario notation (D, R, Q, F for
+# disruptions; E, A, S, B for practices), used to auto-build a scenario tag
+# like "DR_PE" (Raw Shortage + Emergency Replenishment) for output filenames
+# and as a column inside exported CSVs, so results are self-identifying
+# without relying on manual folder naming.
+DISRUPTION_LETTER_MAP = {
+    "ENABLE_D_DEMAND_SHOCK": "D",
+    "ENABLE_D_RAW_SHORTAGE": "R",
+    "ENABLE_D_QUALITY_SHOCK": "Q",
+    "ENABLE_D_FINISHED_TRANSPORT_DELAY": "F",
+}
+
+PRACTICE_LETTER_MAP = {
+    "ENABLE_P_EMERGENCY_RAW_REPLENISHMENT": "E",
+    "ENABLE_P_ADAPTIVE_RAW_SAFETY_STOCK": "A",
+    "ENABLE_P_DEMAND_SURGE_CAPACITY": "S",
+    "ENABLE_P_BACKUP_FINISHED_GOODS_TRUCK": "B",
+}
+
+_DISRUPTION_LETTER_ORDER = ["D", "R", "Q", "F"]
+_PRACTICE_LETTER_ORDER = ["E", "A", "S", "B"]
+
+
+def scenario_tag_from_model_text(text: str) -> str:
+    """Build a scenario tag like 'DR_PE' from the model's current ENABLE_D_*/
+    ENABLE_P_* flag values: 'D' + letter for each active disruption, 'P' +
+    letter for each active practice, in the paper's canonical D,R,Q,F /
+    E,A,S,B order. Returns 'baseline' if nothing is enabled.
+    """
+    active_d = set()
+    active_p = set()
+    for line in text.splitlines():
+        m = ENABLE_CONST_RE.match(line)
+        if not m or m.group("value").lower() != "true":
+            continue
+        name = m.group("name")
+        if name in DISRUPTION_LETTER_MAP:
+            active_d.add(DISRUPTION_LETTER_MAP[name])
+        elif name in PRACTICE_LETTER_MAP:
+            active_p.add(PRACTICE_LETTER_MAP[name])
+
+    parts = [f"D{d}" for d in _DISRUPTION_LETTER_ORDER if d in active_d]
+    parts += [f"P{p}" for p in _PRACTICE_LETTER_ORDER if p in active_p]
+    return "_".join(parts) if parts else "baseline"
 
 RESULT_BLOCK_RE = re.compile(r"\n?\s*<result\b[^>]*>.*?</result>\s*", re.DOTALL)
 RESULT_SELF_CLOSING_RE = re.compile(r"\n?\s*<result\b[^>]*/>\s*")
@@ -73,6 +120,8 @@ class ParsedTrace:
     ci_low: str = ""
     ci_high: str = ""
     trace_file: str = ""
+    scenario_tag: str = ""
+    seed: str = ""
 
 
 def read_text(path: Path) -> str:
@@ -203,12 +252,27 @@ def parse_estimate(text: str) -> Optional[ParsedTrace]:
     runs = match.group("runs")
     value = match.group("value").strip()
 
+    # The err group is the +/- margin verifyta reports for estimate queries
+    # (e.g. "(50 runs) E(max) = 8.66 +/- 0.450673 (95% CI)"). Previously this
+    # was captured by the regex but discarded here, leaving ci_low/ci_high
+    # empty for every estimate-type query in exported CSVs even though the
+    # margin was always present in the raw trace text.
+    ci_low = ""
+    ci_high = ""
+    try:
+        value_f = float(value)
+        err_f = float(match.group("err"))
+        ci_low = f"{value_f - err_f:.6g}"
+        ci_high = f"{value_f + err_f:.6g}"
+    except (TypeError, ValueError):
+        pass
+
     return ParsedTrace(
         query_name="estimate query",
         value=value,
         runs=runs,
-        ci_low="",
-        ci_high="",
+        ci_low=ci_low,
+        ci_high=ci_high,
     )
 
 
@@ -227,6 +291,10 @@ def parse_trace(path: Path) -> ParsedTrace:
         )
     else:
         parsed.query_name = clean_query_name_from_filename(path)
+
+    seed_match = SEED_RE.search(text)
+    if seed_match:
+        parsed.seed = seed_match.group("seed")
 
     parsed.trace_file = str(path)
     return parsed
@@ -259,7 +327,7 @@ def expand_inputs(inputs: Iterable[str], recursive: bool = False) -> List[Path]:
 
 
 def write_trace_csv(rows: List[ParsedTrace], out_path: Path) -> None:
-    fieldnames = ["query_name", "value", "runs", "ci_low", "ci_high", "trace_file"]
+    fieldnames = ["query_name", "value", "runs", "ci_low", "ci_high", "scenario_tag", "seed", "trace_file"]
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -333,7 +401,7 @@ class App(tk.Tk):
         ttk.Label(runs_frame, text='Number of Runs:').pack(side='left')
         self.runs_var = tk.StringVar(value='1')
         ttk.Entry(runs_frame, textvariable=self.runs_var, width=5).pack(side='left', padx=6)
-        ttk.Label(runs_frame, text='(default 1, 30 seconds between runs)').pack(side='left')
+        ttk.Label(runs_frame, text='(default 1, 10 seconds between runs)').pack(side='left')
 
         # Query list
         q_frame = ttk.Frame(frm)
@@ -3172,7 +3240,7 @@ class App(tk.Tk):
         self.append_log(f'Selected {len(selected_queries)} query(s)')
         self.append_log(f'Number of runs: {num_runs}')
         if num_runs > 1:
-            self.append_log('30 seconds delay between runs')
+            self.append_log('10 seconds delay between runs')
 
         resolved_verifyta = self._resolve_verifyta(verifyta)
         if not resolved_verifyta:
@@ -3200,10 +3268,10 @@ class App(tk.Tk):
                 generated_trace_files = []
                 for run_idx in range(num_runs):
                     if run_idx > 0:
-                        self.append_log(f'Waiting 30 seconds before run {run_idx + 1}/{num_runs}...')
-                        for i in range(30):
+                        self.append_log(f'Waiting 10 seconds before run {run_idx + 1}/{num_runs}...')
+                        for i in range(10):
                             if i % 5 == 0 and i > 0:
-                                self.set_status(f'Waiting {30 - i}s before next run...')
+                                self.set_status(f'Waiting {10 - i}s before next run...')
                             time.sleep(1)
                         self.set_status('Running query...')
 
@@ -3249,6 +3317,12 @@ class App(tk.Tk):
                             unique_trace_files.append(trace_file)
 
                     parsed_rows = [parse_trace(Path(p)) for p in unique_trace_files]
+                    try:
+                        scenario_tag = scenario_tag_from_model_text(read_text(Path(model)))
+                    except Exception:
+                        scenario_tag = ''
+                    for row in parsed_rows:
+                        row.scenario_tag = scenario_tag
                     trace_dir = Path(self._trace_dir_for_output(out))
                     output_name = f"{Path(out).stem}_values.csv"
                     final_csv_path = trace_dir / output_name
@@ -3287,7 +3361,25 @@ class App(tk.Tk):
 
     def _default_output_csv_for_model(self, model_path):
         model_name = Path(model_path).stem if model_path else 'queries'
-        return str(Path(model_path).with_name(f'{model_name}_queries.csv'))
+        tag = 'queries'
+        try:
+            tag = scenario_tag_from_model_text(read_text(Path(model_path)))
+        except Exception:
+            pass
+        filename = f'{model_name}_{tag}_queries.csv'
+
+        # Save into <repo>/results/raw_traces/ instead of next to the model
+        # file, so every run's traces + values CSV land in the results
+        # folder automatically. Falls back to the model's own folder if the
+        # model isn't inside the expected repo layout (model_dir/../results).
+        if model_path:
+            model_dir = Path(model_path).parent
+            project_root = model_dir.parent
+            results_raw_traces = project_root / 'results' / 'raw_traces'
+            if (project_root / 'results').is_dir() or model_dir.name.lower() == 'model':
+                return str(results_raw_traces / filename)
+
+        return str(Path(model_path).with_name(filename)) if model_path else filename
 
 
 def main():

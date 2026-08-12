@@ -84,7 +84,7 @@ typedef int[0, 1000000] big_int;
 const bool ENABLE_D_DEMAND_SHOCK = false;
 
 // [DK:RS] Raw-material shortage disruption
-const bool ENABLE_D_RAW_SHORTAGE = true;
+const bool ENABLE_D_RAW_SHORTAGE = false;
 
 // [DK:QS] Quality shock disruption
 const bool ENABLE_D_QUALITY_SHOCK = false;
