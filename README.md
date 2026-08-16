@@ -4,7 +4,7 @@
 
 Reproducibility artifact by Ahmad Salameh, SYMME Laboratory, Université Savoie Mont Blanc. The formal citation for the associated journal article will be added here once it is accepted; until then, cite this repository directly (see "Citing this repository" below).
 
-This repository accompanies the internship report "Modelling and Analysis of Supply Chain Resilience Using Stochastic Timed Automata" and the resulting journal article. It provides a switchable **Stochastic Timed Automata (STA)** model of supply chain resilience, analyzed through **Statistical Model Checking (SMC)** in UPPAAL, together with a Python toolchain that binds the resulting quantitative evidence to a **Process Resilience Maturity Model (PRMM)** score. Concretely, it contains the UPPAAL model, the Python evaluation toolchain, and the full experimental results (point estimates, 95% confidence intervals, and raw `verifyta` traces) for all eleven scenario configurations.
+This repository accompanies the internship report "Modelling and Analysis of Supply Chain Resilience Using Stochastic Timed Automata" and the resulting journal article. It provides a switchable **Stochastic Timed Automata (STA)** model of supply chain resilience, analyzed through **Statistical Model Checking (SMC)** in UPPAAL, together with a Python toolchain that binds the resulting quantitative evidence to a **Process Resilience Maturity Model (PRMM)** score. Concretely, it contains the UPPAAL model, the Python evaluation toolchain, and the full experimental results (point estimates, 95% confidence intervals, and raw `verifyta` traces) for the eleven main scenario configurations, plus four false-positive activation probes and an eight-run parameter sensitivity sweep (see "Scenario configurations" below).
 
 ## Repository structure
 
@@ -23,13 +23,27 @@ toolchain/
                                                     (improvement strength) scoring,
                                                     baseline/practice comparison heat map.
 
+                  v3 also provides a Calibration tab for live-editing model constants
+                  (T1_MAX, N_CUST, demand-shock gamma parameters, query horizon) without
+                  hand-editing the XML, and a "Reference seeds CSV" field in the Query
+                  Runner tab for common-random-numbers (CRN) seed replay -- pointing a
+                  run at a prior run's captured seeds so a paired sensitivity comparison
+                  differs only in the swept constant, not in independent RNG noise.
+
 results/
-  Paper1_Full_Results_With_CI.csv   All 11 scenarios x 17 queries, with point estimate,
-                                     95% CI bounds, margin, and run count for each cell.
-  raw_traces/                       Raw verifyta output for every one of the 187
-                                     (scenario x query) runs, one .txt per run, plus a
-                                     per-scenario summary CSV. Primary source data that
-                                     Paper1_Full_Results_With_CI.csv was parsed from.
+  Paper1_Full_Results_With_CI.csv   All 11 main scenarios x 17 queries, with point
+                                     estimate, 95% CI bounds, margin, and run count for
+                                     each cell.
+  raw_traces/                       Raw verifyta output for every scenario x query run,
+                                     one .txt per run, plus a per-scenario summary CSV.
+                                     Primary source data that Paper1_Full_Results_With_CI.csv
+                                     was parsed from. Also holds the four false-positive
+                                     probe scenarios (_PE_, _PA_, _PS_, _PB_ folders) and
+                                     the CRN-paired parameter sensitivity sweep (extra runs
+                                     inside the _baseline_, _DR_PE_, _DD_, and _DD_PE_PS_
+                                     folders, distinguished by _1/_2/_3 trace-file suffixes
+                                     per query) -- see CHANGELOG.md for what each sweep run
+                                     changed.
 
 docs/
   calibration_and_scenario_design.md   Calibration methodology and the 11-scenario
@@ -109,6 +123,23 @@ means all four disruptions active, met with the full four-practice portfolio.
 | R,D,Q,F + E,A,S,B | all four ENABLE_D_* and all four ENABLE_P_* |
 
 Query battery: 17 queries per scenario, N=50 runs per estimate query, horizon T=800 time units (see paper Table B.1 / Appendix B for full formulas).
+
+### False-positive activation probes
+
+Four additional scenarios test whether a practice flag produces an effect even with no matching disruption active (a false positive would indicate the practice's model logic isn't properly gated on its disruption):
+
+| Scenario | Active flags |
+|---|---|
+| E without R | ENABLE_P_EMERGENCY_RAW_REPLENISHMENT only |
+| A without R | ENABLE_P_ADAPTIVE_RAW_SAFETY_STOCK only |
+| S without D | ENABLE_P_DEMAND_SURGE_CAPACITY only |
+| B without F | ENABLE_P_BACKUP_FINISHED_GOODS_TRUCK only |
+
+Results and interpretation are in the paper (Section "False-positive activation probes").
+
+### Parameter sensitivity sweep
+
+Eight CRN-paired runs test two calibration-uncertainty parameters -- `T1_MAX` (12/16/20) and the demand-shock gamma shape `DEMAND_SHOCK_PCT_SHAPE` (0.5/1.0/2.0) -- each under two matched flag combinations (Baseline/R+E for `T1_MAX`; D/D+E,S for the shape parameter), replayed against a fixed reference run's seeds so only the swept constant differs between paired runs. `N_CUST`/`N_STORE` were deliberately excluded from this sweep: they're fixed by the source ERPsim dataset, not free/estimated calibration parameters, so sensitivity-testing them wouldn't answer the same question. Results are written up in the paper's Calibration section.
 
 ## Citing this repository
 

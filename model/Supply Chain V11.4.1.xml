@@ -1258,6 +1258,15 @@ bool production_request_pending[N_PROD] = {false, false};
 // ---------- Demand-shock timing ----------
 const int DEMAND_SHOCK_PERIOD = 510;
 
+// ---------- Demand-shock stochastic calibration parameters ----------
+// Pulled out as named consts (rather than inline literals inside the sample
+// functions below) so they can be read/edited from the GUI's Calibration
+// tab for sensitivity analysis, the same way ENABLE_* flags are.
+const double DEMAND_SHOCK_PCT_SHAPE = 1.0;
+const double DEMAND_SHOCK_PCT_SCALE = 2.0;
+const double DEMAND_SHOCK_DURATION_SHAPE = 1.0;
+const double DEMAND_SHOCK_DURATION_SCALE = 10.0;
+
 bool demand_shock_active = false;
 
 int demand_shock_pct = 0;          // 5..10%
@@ -1276,7 +1285,7 @@ int[0,100] order_qty[N_CUST];
 int demand_shock_pct_sample() {
     int p;
 
-    p = 5 + fint(random_gamma(1.0, 2.0));
+    p = 5 + fint(random_gamma(DEMAND_SHOCK_PCT_SHAPE, DEMAND_SHOCK_PCT_SCALE));
 
     if (p &gt; 10) p = 10;
 
@@ -1287,7 +1296,7 @@ int demand_shock_pct_sample() {
 int demand_shock_duration_sample() {
     int d;
 
-    d = 50 + fint(random_gamma(1.0, 10.0));
+    d = 50 + fint(random_gamma(DEMAND_SHOCK_DURATION_SHAPE, DEMAND_SHOCK_DURATION_SCALE));
 
     if (d &gt; 70) d = 70;
 
