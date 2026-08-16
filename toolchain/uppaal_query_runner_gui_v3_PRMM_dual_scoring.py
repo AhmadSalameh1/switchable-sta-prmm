@@ -63,6 +63,41 @@ ENABLE_CONST_RE = re.compile(
     r"^\s*const\s+bool\s+(?P<name>ENABLE_[A-Za-z0-9_]+)\s*=\s*(?P<value>true|false)\s*;.*$"
 )
 
+# Generic "const int NAME = value;" / "const double NAME = value;" matcher,
+# used by the Calibration tab to read/edit numeric model constants live from
+# the GUI (mirrors ENABLE_CONST_RE's role for the boolean ENABLE_* switches).
+CALIBRATION_CONST_LINE_RE = re.compile(
+    r"^\s*const\s+(?:int|double)\s+(?P<name>[A-Za-z0-9_]+)\s*=\s*(?P<value>[-+0-9.eE]+)\s*;.*$"
+)
+
+# Curated whitelist of model constants exposed on the Calibration tab, with a
+# human-readable label for each. Deliberately excludes N_STORE and other
+# array-sized structural constants: those require matching entries to be
+# added/removed in ~20 dependent N_STORE-sized array literals elsewhere in
+# the declarations, which isn't safe to do as a single live value edit here.
+CALIBRATION_VARS = [
+    ("T1_MIN", "Raw-material truck transit time - min (T1_MIN)"),
+    ("T1_MAX", "Raw-material truck transit time - max (T1_MAX)"),
+    ("N_CUST", "Number of customers (N_CUST)"),
+    ("N_SUPP", "Number of suppliers (N_SUPP)"),
+    ("N_RM", "Number of raw materials (N_RM)"),
+    ("N_PROD", "Number of production units (N_PROD)"),
+    ("DEMAND_SHOCK_PERIOD", "Demand-shock cycle period (DEMAND_SHOCK_PERIOD)"),
+    ("DEMAND_SHOCK_PCT_SHAPE", "Demand-shock magnitude - gamma shape"),
+    ("DEMAND_SHOCK_PCT_SCALE", "Demand-shock magnitude - gamma scale"),
+    ("DEMAND_SHOCK_DURATION_SHAPE", "Demand-shock duration - gamma shape"),
+    ("DEMAND_SHOCK_DURATION_SCALE", "Demand-shock duration - gamma scale"),
+]
+CALIBRATION_VAR_NAMES = {name for name, _label in CALIBRATION_VARS}
+
+# The SMC horizon (e.g. "E[<=800;50]", "Pr[<=800](...)") is repeated across
+# every query formula rather than being a single named constant. In the raw
+# XML text it's XML-escaped as "&lt;=800". Scoped to the <queries>...</queries>
+# block only, so a bulk edit here can never touch an unrelated number
+# elsewhere in the declarations.
+QUERIES_BLOCK_RE = re.compile(r"(<queries>)(.*?)(</queries>)", re.DOTALL)
+HORIZON_RE = re.compile(r"&lt;=(?P<horizon>\d+)")
+
 # Single-letter codes matching the paper's scenario notation (D, R, Q, F for
 # disruptions; E, A, S, B for practices), used to auto-build a scenario tag
 # like "DR_PE" (Raw Shortage + Emergency Replenishment) for output filenames
@@ -391,19 +426,25 @@ class App(tk.Tk):
         self.status_var = tk.StringVar(value='Ready')
         self.enable_status_var = tk.StringVar(value='Select a model to load ENABLE_* switches')
         self.enable_flag_vars = {}
+        self.calibration_status_var = tk.StringVar(value='Select a model to load calibration variables')
+        self.calibration_vars = {}
+        self.horizon_var = tk.StringVar(value='')
 
         notebook = ttk.Notebook(self)
         notebook.pack(fill='both', expand=True, padx=8, pady=8)
 
         self.runner_tab = ttk.Frame(notebook)
         self.flags_tab = ttk.Frame(notebook)
+        self.calibration_tab = ttk.Frame(notebook)
         self.prmm_tab = ttk.Frame(notebook)
         notebook.add(self.runner_tab, text='Query Runner')
         notebook.add(self.flags_tab, text='Enable Switches')
+        notebook.add(self.calibration_tab, text='Calibration')
         notebook.add(self.prmm_tab, text='PRMM Evaluation')
 
         self._build_runner_tab()
         self._build_flags_tab()
+        self._build_calibration_tab()
         self._build_prmm_tab()
 
     def _build_runner_tab(self):
@@ -443,6 +484,19 @@ class App(tk.Tk):
         self.runs_var = tk.StringVar(value='1')
         ttk.Entry(runs_frame, textvariable=self.runs_var, width=5).pack(side='left', padx=6)
         ttk.Label(runs_frame, text='(default 1, 10 seconds between runs)').pack(side='left')
+
+        # Reference seeds CSV (common random numbers / CRN replay for paired
+        # sensitivity comparisons): when set, each query is run with the
+        # exact same verifyta seed as the matching row (by position) in this
+        # CSV, instead of a fresh random seed. Leave blank for normal
+        # independent-seed runs.
+        seeds_frame = ttk.Frame(frm)
+        seeds_frame.pack(fill='x', pady=4)
+        ttk.Label(seeds_frame, text='Reference seeds CSV (optional, CRN replay):').pack(side='left')
+        self.reference_seeds_var = tk.StringVar(value='')
+        ttk.Entry(seeds_frame, textvariable=self.reference_seeds_var, width=50).pack(side='left', padx=6)
+        ttk.Button(seeds_frame, text='Browse', command=self.browse_reference_seeds).pack(side='left')
+        ttk.Button(seeds_frame, text='Clear', command=lambda: self.reference_seeds_var.set('')).pack(side='left', padx=4)
 
         # Query list
         q_frame = ttk.Frame(frm)
@@ -516,6 +570,41 @@ class App(tk.Tk):
             lambda e: self.flags_canvas.itemconfigure(self.flags_window, width=e.width),
         )
 
+    def _build_calibration_tab(self):
+        root = ttk.Frame(self.calibration_tab)
+        root.pack(fill='both', expand=True, padx=8, pady=8)
+
+        top = ttk.Frame(root)
+        top.pack(fill='x', pady=4)
+        ttk.Label(top, text='Calibration / sensitivity-analysis variables from selected model file').pack(side='left')
+        ttk.Button(top, text='Refresh', command=self.load_calibration_vars).pack(side='right')
+
+        status = ttk.Frame(root)
+        status.pack(fill='x', pady=2)
+        ttk.Label(status, textvariable=self.calibration_status_var, wraplength=900, justify='left').pack(side='left')
+
+        container = ttk.Frame(root)
+        container.pack(fill='both', expand=True, pady=6)
+
+        self.calibration_canvas = tk.Canvas(container, borderwidth=0, highlightthickness=0)
+        self.calibration_canvas.pack(side='left', fill='both', expand=True)
+
+        self.calibration_scrollbar = ttk.Scrollbar(container, orient='vertical', command=self.calibration_canvas.yview)
+        self.calibration_scrollbar.pack(side='right', fill='y')
+        self.calibration_canvas.configure(yscrollcommand=self.calibration_scrollbar.set)
+
+        self.calibration_inner = ttk.Frame(self.calibration_canvas)
+        self.calibration_window = self.calibration_canvas.create_window((0, 0), window=self.calibration_inner, anchor='nw')
+
+        self.calibration_inner.bind(
+            '<Configure>',
+            lambda _e: self.calibration_canvas.configure(scrollregion=self.calibration_canvas.bbox('all')),
+        )
+        self.calibration_canvas.bind(
+            '<Configure>',
+            lambda e: self.calibration_canvas.itemconfigure(self.calibration_window, width=e.width),
+        )
+
     def _default_verifyta(self):
         candidates = [
             r'C:\Program Files\UPPAAL-5.0.0\app\bin\verifyta.exe',
@@ -532,12 +621,57 @@ class App(tk.Tk):
             self.model_var.set(p)
             self.load_queries()
             self.load_enable_flags()
+            self.load_calibration_vars()
             self.refresh_prmm_sources()
 
     def browse_verifyta(self):
         p = filedialog.askopenfilename(title='Select verifyta executable', filetypes=[('Executables','verifyta.exe;verifyta'),('All files','*.*')])
         if p:
             self.verifyta_var.set(p)
+
+    def browse_reference_seeds(self):
+        p = filedialog.askopenfilename(
+            title='Select a reference values.csv to replay seeds from',
+            filetypes=[('CSV files', '*.csv'), ('All files', '*.*')],
+        )
+        if p:
+            self.reference_seeds_var.set(p)
+
+    def _load_reference_seeds(self, expected_count):
+        """Read the 'seed' column from the reference CSV, in row order, for
+        CRN replay. Returns None if no reference CSV is set. Raises if the
+        file can't be read or its row count doesn't match expected_count,
+        since a position-based mismatch would silently pair the wrong
+        queries together."""
+        path_str = (self.reference_seeds_var.get() or '').strip()
+        if not path_str:
+            return None
+
+        path = Path(path_str)
+        if not path.is_file():
+            raise RuntimeError(f'Reference seeds CSV not found: {path_str}')
+
+        with path.open('r', newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            if 'seed' not in (reader.fieldnames or []):
+                raise RuntimeError(f'Reference CSV has no "seed" column: {path_str}')
+            rows = list(reader)
+
+        if len(rows) != expected_count:
+            raise RuntimeError(
+                f'Reference CSV has {len(rows)} row(s) but {expected_count} '
+                f'quer(y/ies) are selected to run -- seeds are matched by '
+                f'position, so counts must match exactly. Pick a reference '
+                f'CSV from the same 17-query battery, or adjust the '
+                f'selected queries.'
+            )
+
+        seeds = [r.get('seed', '') for r in rows]
+        missing = [i + 1 for i, s in enumerate(seeds) if not s]
+        if missing:
+            raise RuntimeError(f'Reference CSV rows {missing} have no seed value.')
+
+        return seeds
 
     def _parse_queries(self, model):
         import xml.etree.ElementTree as ET
@@ -671,6 +805,137 @@ class App(tk.Tk):
 
         if updated_text != text:
             path.write_text(updated_text, encoding='utf-8')
+
+    def load_calibration_vars(self):
+        for w in self.calibration_inner.winfo_children():
+            w.destroy()
+        self.calibration_vars = {}
+
+        model = self.model_var.get()
+        if not model or not os.path.isfile(model):
+            self.calibration_status_var.set('Select a valid model file first.')
+            return
+
+        try:
+            text = read_text(Path(model))
+            lines = text.splitlines()
+            found = {}
+            for line in lines:
+                m = CALIBRATION_CONST_LINE_RE.match(line)
+                if m and m.group('name') in CALIBRATION_VAR_NAMES:
+                    found[m.group('name')] = m.group('value')
+
+            horizons = sorted(set(HORIZON_RE.findall(text)))
+
+            missing = [name for name, _label in CALIBRATION_VARS if name not in found]
+            status_bits = [f'Found {len(found)}/{len(CALIBRATION_VARS)} calibration variable(s).']
+            if missing:
+                status_bits.append(f'Not found in model: {", ".join(missing)}.')
+            if len(horizons) > 1:
+                status_bits.append(f'Warning: queries use inconsistent horizons {horizons} -- fix manually before editing.')
+            status_bits.append('N_STORE is intentionally not editable here (requires resizing several dependent arrays by hand).')
+            self.calibration_status_var.set(' '.join(status_bits))
+
+            grp = ttk.LabelFrame(self.calibration_inner, text='Model constants')
+            grp.pack(fill='x', pady=6, padx=4, anchor='nw')
+            for name, label in CALIBRATION_VARS:
+                if name not in found:
+                    continue
+                row = ttk.Frame(grp)
+                row.pack(fill='x', pady=2, padx=4)
+                ttk.Label(row, text=label, width=45, anchor='w').pack(side='left', padx=(4, 8))
+                var = tk.StringVar(value=found[name])
+                self.calibration_vars[name] = var
+                entry = ttk.Entry(row, textvariable=var, width=12)
+                entry.pack(side='left', padx=4)
+                btn = ttk.Button(row, text='Apply', command=lambda n=name, v=var: self._on_calibration_apply(n, v))
+                btn.pack(side='left', padx=4)
+                entry.bind('<Return>', lambda _e, n=name, v=var: self._on_calibration_apply(n, v))
+
+            horizon_grp = ttk.LabelFrame(self.calibration_inner, text='SMC horizon (applies to every query formula)')
+            horizon_grp.pack(fill='x', pady=6, padx=4, anchor='nw')
+            row = ttk.Frame(horizon_grp)
+            row.pack(fill='x', pady=2, padx=4)
+            ttk.Label(row, text='Horizon T (all E[<=T;N] / Pr[<=T] queries)', width=45, anchor='w').pack(side='left', padx=(4, 8))
+            current_horizon = horizons[0] if len(horizons) == 1 else (horizons[0] if horizons else '')
+            self.horizon_var.set(current_horizon)
+            h_entry = ttk.Entry(row, textvariable=self.horizon_var, width=12)
+            h_entry.pack(side='left', padx=4)
+            h_btn = ttk.Button(row, text='Apply to all queries', command=self._on_horizon_apply)
+            h_btn.pack(side='left', padx=4)
+            h_entry.bind('<Return>', lambda _e: self._on_horizon_apply())
+
+        except Exception as e:
+            self.calibration_status_var.set(f'Failed to read calibration variables: {e}')
+
+    def _on_calibration_apply(self, name, var):
+        value_str = var.get().strip()
+        try:
+            float(value_str)
+        except ValueError:
+            messagebox.showerror('Invalid value', f'{name}: "{value_str}" is not a number.')
+            return
+        try:
+            self._set_calibration_const(name, value_str)
+            self.append_log(f'{name} set to {value_str}')
+            self.set_status(f'{name} = {value_str}')
+        except Exception as e:
+            messagebox.showerror('Failed to update model', str(e))
+
+    def _set_calibration_const(self, name, value_str):
+        model = self.model_var.get()
+        if not model or not os.path.isfile(model):
+            raise RuntimeError('Select a valid model file first.')
+
+        path = Path(model)
+        text = read_text(path)
+        pattern = re.compile(
+            rf'(^\s*const\s+(?:int|double)\s+{re.escape(name)}\s*=\s*)([-+0-9.eE]+)(\s*;.*)$',
+            re.MULTILINE,
+        )
+        updated_text, count = pattern.subn(lambda m: f"{m.group(1)}{value_str}{m.group(3)}", text, count=1)
+        if count == 0:
+            raise RuntimeError(f'Could not find declaration for {name}.')
+
+        if updated_text != text:
+            path.write_text(updated_text, encoding='utf-8')
+
+    def _on_horizon_apply(self):
+        value_str = self.horizon_var.get().strip()
+        if not value_str.isdigit():
+            messagebox.showerror('Invalid value', f'Horizon must be a positive integer, got "{value_str}".')
+            return
+        try:
+            count = self._set_horizon(value_str)
+            self.append_log(f'SMC horizon set to {value_str} in {count} query formula(s)')
+            self.set_status(f'Horizon = {value_str} ({count} queries updated)')
+        except Exception as e:
+            messagebox.showerror('Failed to update model', str(e))
+
+    def _set_horizon(self, value_str):
+        """Bulk-replace every '&lt;=<old>' occurrence inside the <queries>...
+        </queries> block with '&lt;=<value_str>'. Scoped to that block only so
+        this can never touch an unrelated number elsewhere in the model."""
+        model = self.model_var.get()
+        if not model or not os.path.isfile(model):
+            raise RuntimeError('Select a valid model file first.')
+
+        path = Path(model)
+        text = read_text(path)
+
+        block_match = QUERIES_BLOCK_RE.search(text)
+        if not block_match:
+            raise RuntimeError('Could not find a <queries>...</queries> block in this model.')
+
+        block_text = block_match.group(2)
+        new_block_text, count = HORIZON_RE.subn(f'&lt;={value_str}', block_text)
+        if count == 0:
+            raise RuntimeError('No "&lt;=<horizon>" patterns found inside the <queries> block.')
+
+        updated_text = text[:block_match.start(2)] + new_block_text + text[block_match.end(2):]
+        if updated_text != text:
+            path.write_text(updated_text, encoding='utf-8')
+        return count
 
     def _build_prmm_tab(self):
         """Build the PRMM setup area plus independent KPI and PRMM scoring tabs."""
@@ -3296,6 +3561,20 @@ class App(tk.Tk):
         self.append_log(f'Resolved verifyta: {resolved_verifyta}')
         self.append_log(f'Intermediate run output path: {out}')
 
+        try:
+            reference_seeds = self._load_reference_seeds(len(selected_queries))
+        except Exception as e:
+            self.run_btn.configure(state='normal')
+            self.set_status('Ready')
+            messagebox.showerror('Reference seeds CSV error', str(e))
+            return
+
+        if reference_seeds:
+            self.append_log(
+                f'CRN replay enabled: reusing {len(reference_seeds)} seed(s) from '
+                f'{self.reference_seeds_var.get()}'
+            )
+
         if not run_all and len(selected_queries) == 1:
             self.set_status('Running selected query...')
         elif not run_all:
@@ -3340,6 +3619,7 @@ class App(tk.Tk):
                             verifyta_path=resolved_verifyta,
                             trace_dir=self._trace_dir_for_output(out),
                             logger=self.append_log,
+                            seeds=reference_seeds,
                         )
 
                     all_rows.extend(rows)

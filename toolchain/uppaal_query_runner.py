@@ -148,7 +148,15 @@ def parse_verifyta_output(output_text):
     }
 
 
-def run_verifyta_for_queries(model_path, queries, verifyta_path='verifyta', trace_dir=None, logger=None):
+def run_verifyta_for_queries(model_path, queries, verifyta_path='verifyta', trace_dir=None, logger=None, seeds=None):
+    """seeds: optional list of RNG seeds, one per entry in `queries`, aligned
+    by position. When provided, each query is run with `-r <seed>` so it uses
+    that exact seed instead of verifyta's default (current time). This
+    enables common-random-numbers (CRN) style paired comparisons: replaying
+    a reference run's captured per-query seeds against a perturbed parameter
+    isolates the parameter's effect from independent-seed noise between the
+    two runs. `seeds[i]` may be None/empty to fall back to a random seed for
+    that specific query."""
     results = []
 
     def log(msg):
@@ -171,13 +179,19 @@ def run_verifyta_for_queries(model_path, queries, verifyta_path='verifyta', trac
                     if s % 5 == 0 and s > 0:
                         log(f'  {10 - s}s remaining...')
                     time.sleep(1)
-            
+
             query_path = os.path.join(tmpdir, f'query_{i}.q')
             write_query_file([query], query_path)
 
-            cmd = [verifyta_path, model_path, query_path]
+            cmd = [verifyta_path]
+            seed_value = seeds[i - 1] if seeds and i - 1 < len(seeds) else None
+            if seed_value not in (None, ''):
+                cmd += ['-r', str(seed_value)]
+            cmd += [model_path, query_path]
             log(f'Running query {i}/{len(queries)}')
             log(f'  formula: {query.get("formula", "")}')
+            if seed_value not in (None, ''):
+                log(f'  using fixed seed: {seed_value} (CRN replay)')
 
             proc = subprocess.run(
                 cmd,
