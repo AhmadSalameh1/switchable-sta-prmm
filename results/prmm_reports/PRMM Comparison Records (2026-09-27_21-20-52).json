@@ -1,0 +1,69 @@
+{
+  "generated_at": "2026-09-27T21:20:52",
+  "model": "/Users/ahmadsalameh/Cowork-C/switchable-sta-prmm/model/Supply Chain V11.4.1.xml",
+  "enabled_disruptions": [
+    "ENABLE_D_FINISHED_TRANSPORT_DELAY"
+  ],
+  "record_count": 2,
+  "records": [
+    {
+      "d_name": "ENABLE_D_FINISHED_TRANSPORT_DELAY",
+      "p_name": "ENABLE_P_BACKUP_FINISHED_GOODS_TRUCK",
+      "k_name": "Q2: E[<=800;50] (max: avg_lead_time()) // [DK:DS][DK:FTD][GK:RES][KPI][DIR:lower] Average customer lead time",
+      "formula": "E[<=800;50] (max: avg_lead_time())",
+      "direction": "lower",
+      "baseline_value": 10.14,
+      "practice_value": 10.06,
+      "improvement": 0.08000000000000007,
+      "tolerance": 0.5,
+      "gate_L3_passed": true,
+      "gate_L4_passed": false,
+      "v6_improvement_pct": 0.788954635108482,
+      "v6_strength_score": 1,
+      "formula_cache_reused": false,
+      "formula_cache_source": null,
+      "activation_status": "confirmed_active",
+      "activation_count": 2.76,
+      "query_index": 2,
+      "query_comment": "[DK:DS][DK:FTD][GK:RES][KPI][DIR:lower] Average customer lead time",
+      "query_disruption_keys": [
+        "DS",
+        "FTD"
+      ],
+      "current_disruption_key": "FTD",
+      "matches_current_disruption": true,
+      "included_in_denominator": true,
+      "gate_L3_reason": "all L3 conditions satisfied",
+      "gate_L4_reason": "improvement <= tolerance"
+    },
+    {
+      "d_name": "ENABLE_D_FINISHED_TRANSPORT_DELAY",
+      "p_name": "ENABLE_P_BACKUP_FINISHED_GOODS_TRUCK",
+      "k_name": "Q7: E[<=800;50] (max: max_stockout_duration_live_all()) // [DK:FTD][GK:RES][KPI][DIR:lower] Finished transport delay / general resilience - stockout duration",
+      "formula": "E[<=800;50] (max: max_stockout_duration_live_all())",
+      "direction": "lower",
+      "baseline_value": 44.1,
+      "practice_value": 38.18,
+      "improvement": 5.920000000000002,
+      "tolerance": 0.5,
+      "gate_L3_passed": true,
+      "gate_L4_passed": true,
+      "v6_improvement_pct": 13.424036281179141,
+      "v6_strength_score": 3,
+      "formula_cache_reused": false,
+      "formula_cache_source": null,
+      "activation_status": "confirmed_active",
+      "activation_count": 2.76,
+      "query_index": 7,
+      "query_comment": "[DK:FTD][GK:RES][KPI][DIR:lower] Finished transport delay / general resilience - stockout duration",
+      "query_disruption_keys": [
+        "FTD"
+      ],
+      "current_disruption_key": "FTD",
+      "matches_current_disruption": true,
+      "included_in_denominator": true,
+      "gate_L3_reason": "all L3 conditions satisfied",
+      "gate_L4_reason": "improvement > tolerance"
+    }
+  ]
+}

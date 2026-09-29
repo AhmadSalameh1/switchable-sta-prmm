@@ -1,0 +1,28 @@
+Options for the verification:
+  Generating no trace
+  Search order is breadth first
+  Using conservative space optimisation
+  Seed is 1790607332
+  State space representation uses minimal constraint systems with future testing
+  Using HashMap + Compress integers for discrete state storage
+[2K
+Verifying formula 1 at /var/folders/7q/4163bm_55j3d_wft7gfcqb6h0000gn/T/uppaal_queries_plonmsnp/query_17.q:2
+ -- Throughput: 131667 items/sec[K
+ -- Throughput: 134938 items/sec[K
+ -- Throughput: 138629 items/sec[K
+ -- Throughput: 133429 items/sec[K
+ -- Throughput: 134049 items/sec[K
+ -- Throughput: 131022 items/sec[K
+ -- Throughput: 132724 items/sec[K
+ -- Throughput: 131558 items/sec[K
+ -- Throughput: 136169 items/sec[K
+ -- Throughput: 136255 items/sec[K
+ -- Throughput: 138043 items/sec[K
+ -- Throughput: 136043 items/sec[K
+ -- Throughput: 136209 items/sec[K
+ -- Throughput: 137961 items/sec[K
+ -- Throughput: 137817 items/sec[K
+[2K -- Formula is satisfied.
+(50 runs) E(max) = 63.12 ± 7.6684 (95% CI)
+
+Values in [12,146] mean=63.12 steps=17: 4 12 11 10 8 3 1 1
